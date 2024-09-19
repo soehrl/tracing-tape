@@ -1,8 +1,6 @@
 use std::{ops::RangeInclusive, path::PathBuf};
 
-use ahash::HashMap;
 use egui_plot::{GridInput, GridMark, PlotPoint};
-use trace_deck::Tape;
 
 mod welcome;
 
@@ -15,10 +13,14 @@ use tape_events::TapeEvents;
 mod tape_timeline;
 use tape_timeline::TapeTimeline;
 
-use crate::{LoadedTape, LoadedTapes};
+mod callsites;
+use callsites::Callsites;
+
+use crate::{state::State, LoadedTape, LoadedTapes};
 
 pub struct TabViewer<'a> {
-    pub tapes: &'a LoadedTapes,
+    // pub tapes: &'a LoadedTapes,
+    pub state: &'a mut State,
     pub utc_offset: time::UtcOffset,
     pub global_time_span: std::ops::Range<time::OffsetDateTime>,
     pub selected_range: &'a mut Option<std::ops::Range<f64>>,
@@ -149,6 +151,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
 
     fn id(&mut self, tab: &mut Self::Tab) -> egui::Id {
         match tab {
+            Tab::Callsites(callsites) => egui::Id::new(callsites.id()),
             Tab::GlobalTimeline(timeline) => egui::Id::new(timeline.id()),
             Tab::Events(tape) => egui::Id::new(tape.id()),
             Tab::Timeline(tape) => egui::Id::new(tape.id()),
@@ -157,6 +160,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
 
     fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
         match tab {
+            Tab::Callsites(callsites) => callsites.title(),
             Tab::GlobalTimeline(timeline) => timeline.title(),
             Tab::Events(tape) => tape.title(),
             Tab::Timeline(tape) => tape.title(),
@@ -165,6 +169,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
 
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
         match tab {
+            Tab::Callsites(callsites) => callsites.ui(ui, self),
             Tab::GlobalTimeline(timeline) => timeline.ui(ui, self),
             Tab::Events(tape) => tape.ui(ui, self),
             Tab::Timeline(tape) => tape.ui(ui, self),
@@ -173,12 +178,17 @@ impl egui_dock::TabViewer for TabViewer<'_> {
 }
 
 pub enum Tab {
+    Callsites(Callsites),
     GlobalTimeline(GlobalTimeline),
     Events(TapeEvents),
     Timeline(TapeTimeline),
 }
 
 impl Tab {
+    pub fn callsites() -> Self {
+        Self::Callsites(Callsites::default())
+    }
+
     pub fn global_timeline() -> Self {
         Self::GlobalTimeline(GlobalTimeline {})
     }
@@ -191,4 +201,3 @@ impl Tab {
         Self::Timeline(TapeTimeline::new(tape_path))
     }
 }
-

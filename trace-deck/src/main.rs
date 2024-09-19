@@ -1,12 +1,17 @@
-use std::{ops::{Deref, DerefMut}, path::{Path, PathBuf}};
+use std::{
+    ops::{Deref, DerefMut},
+    path::{Path, PathBuf},
+};
 
 use clap::Parser;
 use eframe::egui;
 use egui_dock::{DockArea, DockState, Style};
+use state::{LoadedTape, LoadedTapes, State};
 use tabs::{Tab, TabViewer};
 use trace_deck::Tape;
 
 pub mod block;
+mod state;
 mod tabs;
 
 #[derive(Debug, Default, Parser)]
@@ -28,50 +33,9 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
-#[derive(Debug)]
-pub struct LoadedTape {
-    pub path: PathBuf,
-    pub tape: Tape,
-    pub time_offset: time::Duration,
-}
-
-impl LoadedTape {
-    pub fn adjusted_timespan(&self) -> std::ops::Range<time::OffsetDateTime> {
-        let tape_time_span = self.tape.time_span();
-        tape_time_span.start + self.time_offset..tape_time_span.end + self.time_offset
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct LoadedTapes(Vec<LoadedTape>);
-
-impl Deref for LoadedTapes {
-    type Target = Vec<LoadedTape>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for LoadedTapes {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl LoadedTapes {
-    pub fn get(&self, path: &Path) -> Option<&LoadedTape> {
-        self.0.iter().find(|tape| tape.path == path)
-    }
-
-    pub fn get_mut(&mut self, path: &Path) -> Option<&mut LoadedTape> {
-        self.0.iter_mut().find(|tape| tape.path == path)
-    }
-}
-
 struct TraceDeck {
     dock_state: DockState<Tab>,
-    tapes: LoadedTapes,
+    state: State,
     selected_range: Option<std::ops::Range<f64>>,
     utc_offset: time::UtcOffset,
     global_center: time::OffsetDateTime,
@@ -103,14 +67,16 @@ impl TraceDeck {
 
         Self {
             dock_state,
-            tapes,
+            state: tapes.into(),
             utc_offset,
             selected_range: None,
             global_center: time::OffsetDateTime::now_utc(),
         }
     }
 
-    fn load_files(files: impl Iterator<Item = impl Into<PathBuf>>) -> std::io::Result<(DockState<Tab>, LoadedTapes)> {
+    fn load_files(
+        files: impl Iterator<Item = impl Into<PathBuf>>,
+    ) -> std::io::Result<(DockState<Tab>, LoadedTapes)> {
         let mut dock_state = DockState::new(vec![Tab::global_timeline()]);
         let mut tapes: Vec<LoadedTape> = Vec::with_capacity(files.size_hint().1.unwrap_or(0));
 
@@ -140,8 +106,11 @@ impl TraceDeck {
             let [_, first_timeline] =
                 main_surface.split_above(root_index, 0.9, vec![Tab::timeline(path)]);
 
+            let [timeline_node, callsites] =
+                main_surface.split_left(first_timeline, 0.1, vec![Tab::callsites()]);
+
             let [timeline_node, event_node] =
-                main_surface.split_right(first_timeline, 0.5, vec![Tab::events(path)]);
+                main_surface.split_right(timeline_node, 0.5, vec![Tab::events(path)]);
 
             for (index, path) in paths.enumerate() {
                 let fraction = (index as f32 + 1.0) / (index as f32 + 2.0);
@@ -150,7 +119,7 @@ impl TraceDeck {
             }
         }
 
-        Ok((dock_state, LoadedTapes(tapes)))
+        Ok((dock_state, tapes.into()))
     }
 }
 
@@ -158,7 +127,7 @@ impl eframe::App for TraceDeck {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             let mut global_time_span: Option<std::ops::Range<time::OffsetDateTime>> = None;
-            for tape in &*self.tapes {
+            for tape in &*self.state.loaded_tapes {
                 let tape_time_span = tape.adjusted_timespan();
                 if let Some(acc) = global_time_span {
                     let min = acc.start.min(tape_time_span.start);
@@ -174,7 +143,8 @@ impl eframe::App for TraceDeck {
             });
 
             let mut viewer = TabViewer {
-                tapes: &self.tapes,
+                // tapes: &self.tapes,
+                state: &mut self.state,
                 utc_offset: self.utc_offset,
                 global_time_span,
                 selected_range: &mut self.selected_range,
@@ -189,9 +159,15 @@ impl eframe::App for TraceDeck {
 
     fn raw_input_hook(&mut self, _ctx: &egui::Context, raw_input: &mut egui::RawInput) {
         if !raw_input.dropped_files.is_empty() {
-            let (dock_state, tapes) = Self::load_files(raw_input.dropped_files.iter().map(|f| f.path.as_ref().unwrap())).unwrap();
+            let (dock_state, tapes) = Self::load_files(
+                raw_input
+                    .dropped_files
+                    .iter()
+                    .map(|f| f.path.as_ref().unwrap()),
+            )
+            .unwrap();
             self.dock_state = dock_state;
-            self.tapes = tapes;
+            self.state = tapes.into();
         }
     }
 }

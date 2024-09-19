@@ -27,14 +27,14 @@ impl GlobalTimeline {
             .include_x(0.0)
             .include_x(viewer.global_max_seconds())
             .include_y(0.0)
-            .include_y(-(viewer.tapes.len() as f64))
+            .include_y(-(viewer.state.loaded_tapes.len() as f64))
             // .label_formatter(|x,_| format!("{:.3}s", x))
             .x_axis_formatter(viewer.time_axis_formatter())
             // .x_grid_spacer(viewer.time_grid_spacer())
             .y_grid_spacer(|_| vec![])
             .link_cursor("global", true, false)
             .show(ui, |plot_ui| {
-                for (level, tape) in viewer.tapes.iter().enumerate() {
+                for (level, tape) in viewer.state.loaded_tapes.iter().enumerate() {
                     let b = Block::new(
                         viewer.time_to_global_span(tape.adjusted_timespan()),
                         tape.path.to_string_lossy().to_string(),

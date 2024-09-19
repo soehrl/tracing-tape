@@ -267,6 +267,10 @@ impl Tape {
         &self.path
     }
 
+    pub fn callsites(&self) -> impl Iterator<Item = (&u64, &Metadata)> {
+        self.callsites.iter()
+    }
+
     pub fn callsite(&self, offset: u64) -> Option<&Metadata> {
         self.callsites.get(&offset)
     }

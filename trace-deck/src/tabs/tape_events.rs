@@ -31,7 +31,7 @@ impl TapeEvents {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, viewer: &mut TabViewer) {
-        let LoadedTape { tape, time_offset, .. } = if let Some(tape) = viewer.tapes.get(&self.tape_path)
+        let LoadedTape { tape, time_offset, .. } = if let Some(tape) = viewer.state.loaded_tapes.get(&self.tape_path)
         {
             tape
         } else {
