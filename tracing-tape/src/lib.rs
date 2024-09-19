@@ -324,7 +324,7 @@ impl TapeRecorder {
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::registry::LookupSpan;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Metadata<'a> {
     #[serde(borrow)]
     pub name: Cow<'a, str>,
@@ -392,7 +392,7 @@ impl Display for Value<'_> {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, Hash, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Level {
     Trace = 0,

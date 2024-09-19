@@ -156,6 +156,7 @@ impl Chapter {
     }
 }
 
+#[derive(Debug)]
 pub struct Tape {
     path: PathBuf,
     file: Arc<File>,
