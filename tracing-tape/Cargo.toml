@@ -1,0 +1,13 @@
+[package]
+name = "tracing-tape"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ahash = "0.8.11"
+dashmap = "6.1.0"
+postcard = { version = "1.0.10", features = ["use-std"] }
+serde = "1.0.210"
+time = { version = "0.3.36", features = ["formatting", "local-offset", "macros", "parsing"] }
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"

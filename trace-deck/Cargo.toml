@@ -1,0 +1,18 @@
+[package]
+name = "trace-deck"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ahash = "0.8.11"
+clap = { version = "4.5.17", features = ["derive"] }
+crossbeam-channel = "0.5.13"
+eframe = "0.28.1"
+egui = "0.28.1"
+egui_dock = "0.13.0"
+egui_extras = "0.28.1"
+egui_plot = "0.28.1"
+postcard = "1.0.10"
+rayon = "1.10.0"
+time = { version = "0.3.36", features = ["formatting", "macros"] }
+tracing-tape = { path = "../tracing-tape" }
