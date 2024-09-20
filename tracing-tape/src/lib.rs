@@ -284,18 +284,6 @@ impl TapeRecorder {
         }
     }
 
-    #[inline]
-    fn write_record_data_with_timestamp(&self, data: &[u8], timestamp: u64) -> u64 {
-        self.write_record_data(data, |chapter_info| {
-            chapter_info
-                .min_timestamp
-                .fetch_min(timestamp, Ordering::Relaxed);
-            chapter_info
-                .max_timestamp
-                .fetch_max(timestamp, Ordering::Relaxed);
-        })
-    }
-
     /// Checks whether the current thread has already been recorded, and does so, if not.
     #[inline]
     fn check_thread(&self) {
@@ -794,10 +782,6 @@ where
     }
 }
 
-pub struct Parser {
-    file: File,
-}
-
 struct Flavor<'a> {
     file: &'a File,
     file_offset: u64,
@@ -819,23 +803,11 @@ impl<'de> postcard::de_flavors::Flavor<'de> for &'de mut Flavor<'de> {
         Ok(byte[0])
     }
 
-    fn try_take_n(&mut self, ct: usize) -> postcard::Result<&'de [u8]> {
+    fn try_take_n(&mut self, _ct: usize) -> postcard::Result<&'de [u8]> {
         todo!();
     }
 
     fn finalize(self) -> postcard::Result<Self::Remainder> {
         Ok(self.bytes_read)
-    }
-}
-
-impl Parser {
-    pub fn with_file<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
-        let file = File::open(path)?;
-
-        Ok(Self { file })
-    }
-
-    pub fn parse(&self) -> Result<(), Box<dyn std::error::Error>> {
-        todo!()
     }
 }

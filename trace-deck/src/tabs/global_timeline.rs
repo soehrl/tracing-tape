@@ -1,8 +1,8 @@
-use egui_plot::Plot;
+use time::Duration;
 
-use crate::block::Block;
+use crate::timeline::Timeline;
 
-use super::TabViewer;
+use super::{tape_timeline::AutoColor, TabViewer};
 
 #[derive(Default)]
 pub struct GlobalTimeline {}
@@ -17,32 +17,26 @@ impl GlobalTimeline {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, viewer: &mut TabViewer) {
-        let color = ui.style().visuals.widgets.active.bg_fill;
-        Plot::new("Global Timeline")
-            .allow_drag(false)
-            .allow_zoom(false)
-            .allow_scroll(false)
-            .allow_double_click_reset(false)
-            .allow_boxed_zoom(false)
-            .include_x(0.0)
-            .include_x(viewer.global_max_seconds())
-            .include_y(0.0)
-            .include_y(-(viewer.state.loaded_tapes.len() as f64))
-            // .label_formatter(|x,_| format!("{:.3}s", x))
-            .x_axis_formatter(viewer.time_axis_formatter())
-            // .x_grid_spacer(viewer.time_grid_spacer())
-            .y_grid_spacer(|_| vec![])
-            .link_cursor("global", true, false)
-            .show(ui, |plot_ui| {
-                for (level, tape) in viewer.state.loaded_tapes.iter().enumerate() {
-                    let b = Block::new(
-                        viewer.time_to_global_span(tape.adjusted_timespan()),
-                        tape.path.to_string_lossy().to_string(),
-                        level,
-                        color,
-                    );
-                    plot_ui.add(b);
-                }
-            });
+        let duration = viewer.state.timeline.end - viewer.state.timeline.start;
+        let timeline = Timeline::new("Global Timeline", Duration::ZERO..=duration)
+            .with_row_header("")
+            .without_background()
+            .without_drag();
+
+        timeline.show(ui, |timeline_ui, _| {
+            let mut color_iter = AutoColor::default();
+            for (level, tape) in viewer.state.loaded_tapes.iter().enumerate() {
+                let start = tape.timestamp_to_global_offset(0, viewer.state.timeline.start);
+                let span = tape.tape.time_span();
+                let end = start + (span.end - span.start);
+
+                timeline_ui.item(
+                    level,
+                    tape.tape.path().to_string_lossy().to_string(),
+                    color_iter.next().expect("color"),
+                    start..=end,
+                );
+            }
+        });
     }
 }

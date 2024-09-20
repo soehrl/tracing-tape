@@ -1,18 +1,83 @@
 use std::path::PathBuf;
 
 use ahash::HashMap;
-use egui::{PointerButton, Resize};
-use egui_plot::{Plot, PlotPoint};
+use time::Duration;
 use tracing_tape::Span;
 
-use crate::block::Block;
+use crate::state::LoadedTape;
 
 use super::TabViewer;
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AutoColor {
+    next_auto_color_idx: u32,
+}
+
+impl Iterator for AutoColor {
+    type Item = egui::Color32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Shamelessly copied from egui_plot::Plot::auto_color
+        let i = self.next_auto_color_idx;
+        self.next_auto_color_idx += 1;
+        let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
+        let h = i as f32 * golden_ratio;
+        Some(egui::epaint::Hsva::new(h, 0.85, 0.5, 1.0).into())
+    }
+}
+
+enum SpanEvent<'a> {
+    Entered { exit: u64, span: &'a Span<'a> },
+    Exited,
+}
+
+type ThreadSpanEvents<'a> = HashMap<u64, Vec<(u64, SpanEvent<'a>)>>;
+
+fn get_thread_span_events<'a>(
+    viewer: &TabViewer,
+    loaded_tape: &'a LoadedTape,
+) -> ThreadSpanEvents<'a> {
+    let mut thread_span_events = HashMap::<u64, Vec<(u64, SpanEvent)>>::default();
+
+    let timestamp_range = viewer.time_to_timestamp_span(loaded_tape, &viewer.state.timeline);
+
+    fn ranges_overlap(a: &std::ops::Range<u64>, b: &std::ops::Range<u64>) -> bool {
+        a.start < b.end && b.start < a.end
+    }
+
+    let data = loaded_tape.tape.data_for_time_span(&viewer.state.timeline);
+    for data in data.0 {
+        for span in data.spans() {
+            for entrance in &span.entrances {
+                if !ranges_overlap(&(entrance.enter..entrance.exit), &timestamp_range) {
+                    continue;
+                }
+
+                let thread_events = thread_span_events
+                    .entry(entrance.thread_id)
+                    .or_insert_with(Vec::new);
+                thread_events.push((
+                    entrance.enter,
+                    SpanEvent::Entered {
+                        exit: entrance.exit,
+                        span,
+                    },
+                ));
+                thread_events.push((entrance.exit, SpanEvent::Exited));
+            }
+        }
+    }
+
+    for (_, events) in &mut thread_span_events {
+        events.sort_by_key(|(timestamp, _)| *timestamp);
+    }
+
+    thread_span_events
+}
 
 pub struct TapeTimeline {
     title: String,
     tape_path: PathBuf,
-    last_bounds: std::ops::RangeInclusive<f64>,
 }
 
 impl TapeTimeline {
@@ -24,11 +89,7 @@ impl TapeTimeline {
             .unwrap_or_else(|| tape_path.to_string_lossy());
 
         let title = format!("Timeline {}", short_filename);
-        Self {
-            title,
-            tape_path,
-            last_bounds: 0.0..=1.0,
-        }
+        Self { title, tape_path }
     }
 
     pub fn id(&self) -> (&PathBuf, &str) {
@@ -40,200 +101,84 @@ impl TapeTimeline {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, viewer: &mut TabViewer) {
-        // if let Some(loaded_tape) = state.loaded_tapes.get(&self.tape_path) {
-        //     // self.event_points.clear();
-        //     // for event in tape.events() {
-        //     //     self.event_points.push([event.timestamp as f64, 0.0]);
-        //     // }
+        let loaded_tape = if let Some(loaded_tape) = viewer.state.loaded_tapes.get(&self.tape_path)
+        {
+            loaded_tape
+        } else {
+            return;
+        };
 
-        //     enum SpanEvent<'a> {
-        //         Entered { exit: u64, span: &'a Span<'a> },
-        //         Exited,
-        //     }
+        let mut thread_span_events = get_thread_span_events(viewer, loaded_tape);
 
-        //     let mut thread_span_events = HashMap::<u64, Vec<(u64, SpanEvent)>>::default();
+        let mut threads = loaded_tape.tape.threads().collect::<Vec<_>>();
+        threads.sort_by(|(name_a, _), (name_b, _)| match name_a.cmp(name_b) {
+            std::cmp::Ordering::Equal => std::cmp::Ordering::Equal,
+            ordering => {
+                if *name_a == "main" {
+                    std::cmp::Ordering::Less
+                } else if *name_b == "main" {
+                    std::cmp::Ordering::Greater
+                } else {
+                    ordering
+                }
+            }
+        });
 
-        //     let global_range = &self.last_bounds;
-        //     let time_span = viewer.global_to_time_span(*global_range.start()..*global_range.end());
-        //     let timestamp_range = viewer.global_to_tape_timestamp_range(
-        //         loaded_tape,
-        //         *global_range.start()..*global_range.end(),
-        //     );
+        let mut color_iter = AutoColor::default();
 
-        //     fn ranges_overlap(a: &std::ops::Range<u64>, b: &std::ops::Range<u64>) -> bool {
-        //         a.start < b.end && b.start < a.end
-        //     }
+        let mut timeline =
+            crate::timeline::Timeline::new(&self.tape_path, viewer.state.timeline_range.clone());
+        for (thread_name, _) in &threads {
+            timeline = timeline.with_row_header(*thread_name);
+        }
+        let respone = timeline.show(ui, |timeline_ui, i| {
+            let events = if let Some(event) = thread_span_events.get_mut(&threads[i].1) {
+                event
+            } else {
+                return;
+            };
+            let color = color_iter.next().unwrap();
 
-        //     let data = loaded_tape.tape.data_for_time_span(time_span);
-        //     for data in data.0 {
-        //         for span in data.spans() {
-        //             for entrance in &span.entrances {
-        //                 if !ranges_overlap(&(entrance.enter..entrance.exit), &timestamp_range) {
-        //                     continue;
-        //                 }
+            let mut level = 0;
+            for (timestamp, event) in events {
+                match event {
+                    SpanEvent::Entered { exit, span } => {
+                        let callsite = loaded_tape.tape.callsite(span.callsite);
 
-        //                 let thread_events = thread_span_events
-        //                     .entry(entrance.thread_id)
-        //                     .or_insert_with(Vec::new);
-        //                 thread_events.push((
-        //                     entrance.enter,
-        //                     SpanEvent::Entered {
-        //                         exit: entrance.exit,
-        //                         span,
-        //                     },
-        //                 ));
-        //                 thread_events.push((entrance.exit, SpanEvent::Exited));
-        //             }
-        //         }
-        //     }
+                        let response = timeline_ui.item(
+                            level,
+                            callsite.map(|c| c.name.to_string()).unwrap_or_default(),
+                            color,
+                            loaded_tape.timestamp_to_global_offset(
+                                *timestamp,
+                                viewer.global_time_span.start,
+                            )
+                                ..=loaded_tape.timestamp_to_global_offset(
+                                    *exit,
+                                    viewer.global_time_span.start,
+                                ),
+                        );
+                        if let Some(callsite) = callsite {
+                            let mut text = format!(
+                                "{} ({:.1})\n{}",
+                                callsite.name,
+                                Duration::nanoseconds((*exit - *timestamp) as i64),
+                                callsite.target
+                            );
+                            if let (Some(file), Some(line)) = (&callsite.file, callsite.line) {
+                                text.push_str(&format!("\n{}:{}", file, line));
+                            }
+                            response.on_hover_text_at_pointer(text);
+                        }
+                        level += 1;
+                    }
+                    SpanEvent::Exited => {
+                        level -= 1;
+                    }
+                }
+            }
+        });
 
-        //     let color = ui.style().visuals.widgets.active.bg_fill;
-        //     let mut weak_color = ui.style().visuals.widgets.active.weak_bg_fill;
-        //     weak_color[3] = 64;
-
-        //     // let points = Points::new(self.event_points.clone()).shape(MarkerShape::Diamond);
-        //     for (thread_name, thread_id) in loaded_tape.tape.threads() {
-        //         egui::CollapsingHeader::new(thread_name)
-        //             .default_open(true)
-        //             .show_unindented(ui, |ui| {
-        //                 let width = ui.available_width();
-        //                 Resize::default()
-        //                     .id_source((thread_id, loaded_tape.tape.path()))
-        //                     .resizable([false, true])
-        //                     .min_width(width)
-        //                     .max_width(width)
-        //                     .default_height(200.0)
-        //                     .with_stroke(false)
-        //                     .show(ui, |ui| {
-        //                         Plot::new((thread_id, loaded_tape.tape.path().to_string_lossy()))
-        //                             .allow_zoom([true, false])
-        //                             .allow_scroll([true, false])
-        //                             .x_axis_formatter(viewer.time_axis_formatter())
-        //                             .show_grid([true, false])
-        //                             // .y_grid_spacer(|_| vec![])
-        //                             .show_axes([true, false])
-        //                             .link_cursor("global", true, false)
-        //                             .link_axis("global", true, false)
-        //                             .allow_boxed_zoom(false)
-        //                             .auto_bounds(false.into())
-        //                             .include_y(0.0)
-        //                             .include_y(-5.0)
-        //                             .include_x(0.0)
-        //                             .include_x(1.0)
-        //                             .show_y(false)
-        //                             .label_formatter(viewer.label_formatter())
-        //                             .show(ui, |plot_ui| {
-        //                                 let response = plot_ui.response();
-        //                                 if response.drag_started_by(PointerButton::Secondary) {
-        //                                     if let Some(hover_pos) = response.hover_pos() {
-        //                                         let pos = plot_ui
-        //                                             .transform()
-        //                                             .value_from_position(hover_pos);
-        //                                         *viewer.selected_range = Some(pos.x..pos.x);
-        //                                         println!("{:?}", viewer.selected_range);
-        //                                     }
-        //                                 }
-        //                                 if response.dragged_by(PointerButton::Secondary) {
-        //                                     match (response.hover_pos(), &mut viewer.selected_range)
-        //                                     {
-        //                                         (Some(hover_pos), Some(range)) => {
-        //                                             let pos = plot_ui
-        //                                                 .transform()
-        //                                                 .value_from_position(hover_pos);
-        //                                             *viewer.selected_range =
-        //                                                 Some(range.start..pos.x);
-        //                                         }
-        //                                         _ => {}
-        //                                     }
-        //                                 }
-        //                                 if response.clicked_by(PointerButton::Secondary) {
-        //                                     *viewer.selected_range = None;
-        //                                 }
-        //                                 let mut bounds = plot_ui.plot_bounds();
-        //                                 *viewer.timeline_center = viewer.global_time_span.start
-        //                                     + time::Duration::seconds_f64(
-        //                                         bounds.min()[0] + bounds.width() / 2.0,
-        //                                     );
-
-        //                                 let y_range = bounds.range_y();
-        //                                 if *y_range.end() > 0.0 {
-        //                                     bounds.translate_y(-*y_range.end());
-        //                                     plot_ui.set_plot_bounds(bounds);
-        //                                 }
-
-        //                                 let global_range = plot_ui.plot_bounds().range_x();
-        //                                 self.last_bounds = global_range.clone();
-
-        //                                 if let Some(thread_events) =
-        //                                     thread_span_events.get_mut(&thread_id)
-        //                                 {
-        //                                     thread_events.sort_by_key(|(timestamp, _)| *timestamp);
-        //                                     let mut level = 0;
-        //                                     for (timestamp, event) in thread_events {
-        //                                         match event {
-        //                                             SpanEvent::Entered { exit, span } => {
-        //                                                 let enter = viewer.tape_to_global(
-        //                                                     loaded_tape,
-        //                                                     *timestamp,
-        //                                                 );
-        //                                                 let exit = viewer
-        //                                                     .tape_to_global(loaded_tape, *exit);
-        //                                                 let callsite = loaded_tape
-        //                                                     .tape
-        //                                                     .callsite(span.callsite);
-
-        //                                                 let block = Block::new(
-        //                                                     enter..exit,
-        //                                                     callsite
-        //                                                         .map(|c| c.name.to_string())
-        //                                                         .unwrap_or_default(),
-        //                                                     level,
-        //                                                     color,
-        //                                                 );
-        //                                                 plot_ui.add(block);
-        //                                                 level += 1;
-        //                                             }
-        //                                             SpanEvent::Exited => {
-        //                                                 level -= 1;
-        //                                             }
-        //                                         }
-        //                                     }
-        //                                 }
-
-        //                                 if let Some(selected_range) = &viewer.selected_range {
-        //                                     let bounds = plot_ui.plot_bounds();
-        //                                     let l = selected_range.start;
-        //                                     let r = selected_range.end;
-        //                                     let t = bounds.max()[1];
-        //                                     let b = bounds.min()[1];
-        //                                     plot_ui.add(
-        //                                         egui_plot::Polygon::new(vec![
-        //                                             [l, t],
-        //                                             [r, t],
-        //                                             [r, b],
-        //                                             [l, b],
-        //                                         ])
-        //                                         .fill_color(weak_color),
-        //                                     );
-
-        //                                     let time_span =
-        //                                         viewer.global_to_time_span(selected_range.clone());
-        //                                     let duration = time_span.end - time_span.start;
-
-        //                                     plot_ui.add(
-        //                                         egui_plot::Text::new(
-        //                                             PlotPoint::new((l + r) / 2.0, (t + b) / 2.0),
-        //                                             format!("{}", duration),
-        //                                         )
-        //                                         .color(egui::Color32::WHITE),
-        //                                     );
-        //                                 }
-        //                             });
-        //                     });
-        //             });
-        //     }
-        // } else {
-        //     ui.label("Loading tape...");
-        // }
+        viewer.state.timeline_range = respone.visible_range;
     }
 }

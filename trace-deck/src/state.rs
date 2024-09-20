@@ -4,8 +4,11 @@ use std::{
 };
 
 use ahash::HashMap;
+use time::Duration;
 use trace_deck::Tape;
 use tracing_tape::Metadata;
+
+use crate::timeline::TimeRange;
 
 #[derive(Debug)]
 pub struct LoadedTape {
@@ -18,6 +21,18 @@ impl LoadedTape {
     pub fn adjusted_timespan(&self) -> std::ops::Range<time::OffsetDateTime> {
         let tape_time_span = self.tape.time_span();
         tape_time_span.start + self.time_offset..tape_time_span.end + self.time_offset
+    }
+
+    pub fn timestamp_date_time(&self, timestamp: u64) -> time::OffsetDateTime {
+        self.tape.timestamp_date_time(timestamp) + self.time_offset
+    }
+
+    pub fn global_offset(&self, global_start: time::OffsetDateTime) -> time::Duration {
+        self.tape.time_span().start - (global_start + self.time_offset)
+    }
+
+    pub fn timestamp_to_global_offset(&self, timestamp: u64, global_start: time::OffsetDateTime) -> time::Duration {
+        self.global_offset(global_start) + Duration::nanoseconds(timestamp as i64)
     }
 }
 
@@ -38,9 +53,14 @@ impl Into<State> for Vec<LoadedTape> {
 
 impl Into<State> for LoadedTapes {
     fn into(self) -> State {
+        let t_min = self.iter().map(|t| t.tape.time_span().start).min().unwrap_or_else(time::OffsetDateTime::now_utc);
+        let t_max = self.iter().map(|t| t.tape.time_span().end).max().unwrap_or_else(time::OffsetDateTime::now_utc);
+        println!("t_min: {:?}, t_max: {:?}", t_min, t_max);
         State {
             callsites: Callsites::for_loaded_tapes(&self),
+            timeline:  t_min..t_max,
             loaded_tapes: self,
+            timeline_range: Duration::ZERO..=(t_max - t_min),
         }
     }
 }
@@ -74,7 +94,10 @@ pub const CALLSITE_MARKS: [(egui_plot::MarkerShape, egui::Color32); 10] = [
     (egui_plot::MarkerShape::Diamond, egui::Color32::DARK_RED),
     (egui_plot::MarkerShape::Square, egui::Color32::DARK_GREEN),
     (egui_plot::MarkerShape::Cross, egui::Color32::DARK_BLUE),
-    (egui_plot::MarkerShape::Plus, egui::Color32::from_rgb(255, 20, 147)),
+    (
+        egui_plot::MarkerShape::Plus,
+        egui::Color32::from_rgb(255, 20, 147),
+    ),
     (egui_plot::MarkerShape::Up, egui::Color32::GREEN),
     (egui_plot::MarkerShape::Down, egui::Color32::RED),
     (egui_plot::MarkerShape::Left, egui::Color32::GOLD),
@@ -177,4 +200,6 @@ impl DerefMut for Callsites {
 pub struct State {
     pub loaded_tapes: LoadedTapes,
     pub callsites: Callsites,
+    pub timeline: std::ops::Range<time::OffsetDateTime>,
+    pub timeline_range: TimeRange,
 }

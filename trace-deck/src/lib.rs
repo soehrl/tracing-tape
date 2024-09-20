@@ -296,7 +296,7 @@ impl Tape {
 
     pub fn data_for_time_span(
         &self,
-        timespan: std::ops::Range<time::OffsetDateTime>,
+        timespan: &std::ops::Range<time::OffsetDateTime>,
     ) -> ChapterDataset {
         let mut dataset = Vec::new();
 

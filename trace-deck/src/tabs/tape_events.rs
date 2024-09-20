@@ -31,7 +31,7 @@ impl TapeEvents {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, viewer: &mut TabViewer) {
-        let LoadedTape { tape, time_offset, .. } = if let Some(tape) = viewer.state.loaded_tapes.get(&self.tape_path)
+        let LoadedTape { tape, .. } = if let Some(tape) = viewer.state.loaded_tapes.get(&self.tape_path)
         {
             tape
         } else {
@@ -40,7 +40,7 @@ impl TapeEvents {
 
         let available_height = ui.available_height();
 
-        let offset = tape.find_event_offset(*viewer.timeline_center - *time_offset);
+        // let offset = tape.find_event_offset(*viewer.timeline_center - *time_offset);
 
         TableBuilder::new(ui)
             .auto_shrink(false)
@@ -48,7 +48,7 @@ impl TapeEvents {
             .column(Column::auto())
             .column(Column::remainder().at_least(100.0))
             .cell_layout(egui::Layout::left_to_right(Align::LEFT))
-            .scroll_to_row(offset as usize, Some(egui::Align::Center))
+            // .scroll_to_row(offset as usize, Some(egui::Align::Center))
             .header(18.0, |mut header| {
                 header.col(|ui| {
                     ui.label("Level");

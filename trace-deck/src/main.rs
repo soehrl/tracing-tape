@@ -1,7 +1,4 @@
-use std::{
-    ops::{Deref, DerefMut},
-    path::{Path, PathBuf},
-};
+use std::path::PathBuf;
 
 use clap::Parser;
 use eframe::egui;
@@ -10,9 +7,9 @@ use state::{LoadedTape, LoadedTapes, State};
 use tabs::{Tab, TabViewer};
 use trace_deck::Tape;
 
-pub mod block;
 mod state;
 mod tabs;
+pub mod timeline;
 
 #[derive(Debug, Default, Parser)]
 struct Args {
@@ -36,13 +33,10 @@ fn main() -> Result<(), eframe::Error> {
 struct TraceDeck {
     dock_state: DockState<Tab>,
     state: State,
-    selected_range: Option<std::ops::Range<f64>>,
-    utc_offset: time::UtcOffset,
-    global_center: time::OffsetDateTime,
 }
 
 impl TraceDeck {
-    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
@@ -63,14 +57,9 @@ impl TraceDeck {
             Self::load_files(args.tape_files.iter()).unwrap()
         };
 
-        let utc_offset = time::UtcOffset::current_local_offset().unwrap_or(time::UtcOffset::UTC);
-
         Self {
             dock_state,
             state: tapes.into(),
-            utc_offset,
-            selected_range: None,
-            global_center: time::OffsetDateTime::now_utc(),
         }
     }
 
@@ -106,7 +95,7 @@ impl TraceDeck {
             let [_, first_timeline] =
                 main_surface.split_above(root_index, 0.9, vec![Tab::timeline(path)]);
 
-            let [timeline_node, callsites] =
+            let [timeline_node, _callsites] =
                 main_surface.split_left(first_timeline, 0.1, vec![Tab::callsites()]);
 
             let [timeline_node, event_node] =
@@ -145,10 +134,7 @@ impl eframe::App for TraceDeck {
             let mut viewer = TabViewer {
                 // tapes: &self.tapes,
                 state: &mut self.state,
-                utc_offset: self.utc_offset,
                 global_time_span,
-                selected_range: &mut self.selected_range,
-                timeline_center: &mut self.global_center,
             };
 
             DockArea::new(&mut self.dock_state)
