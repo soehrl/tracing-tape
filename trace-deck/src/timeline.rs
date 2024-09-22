@@ -29,6 +29,11 @@ impl Timeline {
         }
     }
 
+    pub fn with_selected_range(mut self, selected_range: Option<TimeRange>) -> Self {
+        self.selected_range = selected_range;
+        self
+    }
+
     pub fn without_drag(mut self) -> Self {
         self.allow_drag = false;
         self
@@ -64,7 +69,8 @@ impl Timeline {
     ) -> TimelineResponse {
         let Self { row_headers, .. } = self;
 
-        let (response, painter) = ui.allocate_painter(ui.available_size(), egui::Sense::drag());
+        let (response, painter) =
+            ui.allocate_painter(ui.available_size(), egui::Sense::click_and_drag());
         let rect = response.rect;
 
         let font_id = &ui.style().text_styles[&egui::TextStyle::Body];
@@ -110,6 +116,8 @@ impl Timeline {
         let item_height = font_id.size + 2.0 * spacing.button_padding.y;
 
         let mut timeline_ui = TimelineUi {
+            // select_mode: ui.input(|i| i.modifiers) == egui::Modifiers::SHIFT,
+            select_mode: false,
             ui,
             data_painter: painter.with_clip_rect(data_rect),
             painter,
@@ -117,6 +125,7 @@ impl Timeline {
             header_rect,
             data_rect,
             visible_range: self.visible_range.clone(),
+            selected_range: self.selected_range.clone(),
             text_color: egui::Color32::WHITE,
             base_offset: axis_rect.height(),
             item_height,
@@ -129,10 +138,16 @@ impl Timeline {
 
         if self.allow_drag {
             if response.dragged_by(PointerButton::Primary) {
+                let modifiers = timeline_ui.ui.input(|i| i.modifiers);
+
                 let dragged_points = response.drag_delta().x;
-                let dragged_duration = timeline_ui.dx2dt(dragged_points);
-                timeline_ui.visible_range = *timeline_ui.visible_range.start() - dragged_duration
-                    ..=*timeline_ui.visible_range.end() - dragged_duration;
+                if modifiers == egui::Modifiers::NONE {
+                    let dragged_duration = timeline_ui.dx2dt(dragged_points);
+                    timeline_ui.visible_range = *timeline_ui.visible_range.start()
+                        - dragged_duration
+                        ..=*timeline_ui.visible_range.end() - dragged_duration;
+                } else if modifiers == egui::Modifiers::SHIFT {
+                }
             }
             if let Some(hover_pos) = response.hover_pos() {
                 let (scroll, zoom) = timeline_ui
@@ -162,6 +177,8 @@ impl Timeline {
             timeline_ui.end_row();
         }
 
+        timeline_ui.paint_selection();
+
         TimelineResponse {
             response,
             visible_range: timeline_ui.visible_range,
@@ -179,6 +196,7 @@ pub struct TimelineUi<'a> {
     header_rect: Option<egui::Rect>,
     data_rect: egui::Rect,
     visible_range: TimeRange,
+    selected_range: Option<TimeRange>,
     text_color: egui::Color32,
     base_offset: f32,
     item_height: f32,
@@ -186,6 +204,7 @@ pub struct TimelineUi<'a> {
     max_level: usize,
     current_row: usize,
     background: bool,
+    select_mode: bool,
 }
 
 fn axis_tick_width(range: &TimeRange) -> Duration {
@@ -427,20 +446,54 @@ impl TimelineUi<'_> {
             egui::Id::new((self.current_row, level, span)),
             egui::Sense::click(),
         );
-        let hovered = response.hovered();
-        let visuals = self.ui.style().interact(&response);
+        let visuals = self.ui.style().noninteractive();
+        let rounding = visuals.rounding;
         self.data_painter.rect_filled(
             rect,
-            visuals.rounding,
-            if hovered {
-                color
+            rounding,
+            if self.select_mode {
+                let mut hsva = egui::epaint::Hsva::from_srgba_premultiplied(color.to_array());
+                hsva.s *= 0.5;
+                hsva.into()
             } else {
-                color.linear_multiply(0.5)
+                color
             },
         );
         if rect.width() > 10.0 {
             self.text(&rect, text);
         }
+
+        // let width = 9.0;
+        // if self.select_mode && rect.width() >= 2.0 * width {
+        //     let shadow = egui::Shadow {
+        //         offset: egui::vec2(0.0, 0.0),
+        //         color: egui::Color32::WHITE,
+        //         blur: 2.0,
+        //         spread: 2.0,
+        //     };
+        //     {
+        //         let mut rect = rect;
+        //         rect.set_width(width);
+
+        //         let mut rounding = rounding;
+        //         rounding.ne = 0.0;
+        //         rounding.se = 0.0;
+
+        //         self.data_painter.add(shadow.as_shape(rect, rounding));
+        //         self.data_painter.rect_filled(rect, rounding, color);
+        //     }
+        //     {
+        //         let mut rect = rect;
+        //         rect.set_left(rect.right() - width);
+
+        //         let mut rounding = rounding;
+        //         rounding.nw = 0.0;
+        //         rounding.sw = 0.0;
+
+        //         self.data_painter.add(shadow.as_shape(rect, rounding));
+        //         self.data_painter.rect_filled(rect, rounding, color);
+        //     }
+        // }
 
         response
     }
@@ -479,6 +532,30 @@ impl TimelineUi<'_> {
                 galley,
                 self.text_color,
             );
+        }
+    }
+
+    fn paint_selection(&mut self) {
+        if let Some(selected_range) = &self.selected_range {
+            let top = self.rect.top();
+            let bottom = self.rect.bottom();
+            let left = self.data_rect.left();
+            let right = self.t2x(*selected_range.start());
+            let rect = egui::Rect::from_min_max(
+                egui::Pos2::new(left, top),
+                egui::Pos2::new(right, bottom),
+            );
+            self.painter
+                .rect_filled(rect, 0.0, egui::Color32::from_black_alpha(64));
+
+            let left = self.t2x(*selected_range.end());
+            let right = self.data_rect.right();
+            let rect = egui::Rect::from_min_max(
+                egui::Pos2::new(left, top),
+                egui::Pos2::new(right, bottom),
+            );
+            self.painter
+                .rect_filled(rect, 0.0, egui::Color32::from_black_alpha(64));
         }
     }
 }

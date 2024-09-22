@@ -21,6 +21,7 @@ impl GlobalTimeline {
         let timeline = Timeline::new("Global Timeline", Duration::ZERO..=duration)
             .with_row_header("")
             .without_background()
+            .with_selected_range(Some(viewer.state.timeline_range.clone()))
             .without_drag();
 
         timeline.show(ui, |timeline_ui, _| {

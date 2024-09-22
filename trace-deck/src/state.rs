@@ -31,7 +31,11 @@ impl LoadedTape {
         self.tape.time_span().start - (global_start + self.time_offset)
     }
 
-    pub fn timestamp_to_global_offset(&self, timestamp: u64, global_start: time::OffsetDateTime) -> time::Duration {
+    pub fn timestamp_to_global_offset(
+        &self,
+        timestamp: u64,
+        global_start: time::OffsetDateTime,
+    ) -> time::Duration {
         self.global_offset(global_start) + Duration::nanoseconds(timestamp as i64)
     }
 }
@@ -53,14 +57,24 @@ impl Into<State> for Vec<LoadedTape> {
 
 impl Into<State> for LoadedTapes {
     fn into(self) -> State {
-        let t_min = self.iter().map(|t| t.tape.time_span().start).min().unwrap_or_else(time::OffsetDateTime::now_utc);
-        let t_max = self.iter().map(|t| t.tape.time_span().end).max().unwrap_or_else(time::OffsetDateTime::now_utc);
+        let t_min = self
+            .iter()
+            .map(|t| t.tape.time_span().start)
+            .min()
+            .unwrap_or_else(time::OffsetDateTime::now_utc);
+        let t_max = self
+            .iter()
+            .map(|t| t.tape.time_span().end)
+            .max()
+            .unwrap_or_else(time::OffsetDateTime::now_utc);
         println!("t_min: {:?}, t_max: {:?}", t_min, t_max);
         State {
+            current_action: Action::None,
             callsites: Callsites::for_loaded_tapes(&self),
-            timeline:  t_min..t_max,
+            timeline: t_min..t_max,
             loaded_tapes: self,
             timeline_range: Duration::ZERO..=(t_max - t_min),
+            selected_range: None,
         }
     }
 }
@@ -197,9 +211,16 @@ impl DerefMut for Callsites {
     }
 }
 
+pub enum Action {
+    None,
+    Measure { from: time::Duration },
+}
+
 pub struct State {
     pub loaded_tapes: LoadedTapes,
     pub callsites: Callsites,
     pub timeline: std::ops::Range<time::OffsetDateTime>,
     pub timeline_range: TimeRange,
+    pub selected_range: Option<TimeRange>,
+    pub current_action: Action,
 }

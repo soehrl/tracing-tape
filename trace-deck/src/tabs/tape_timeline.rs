@@ -4,7 +4,7 @@ use ahash::HashMap;
 use time::Duration;
 use tracing_tape::Span;
 
-use crate::state::LoadedTape;
+use crate::state::{Action, LoadedTape};
 
 use super::TabViewer;
 
@@ -127,10 +127,15 @@ impl TapeTimeline {
         let mut color_iter = AutoColor::default();
 
         let mut timeline =
-            crate::timeline::Timeline::new(&self.tape_path, viewer.state.timeline_range.clone());
+            crate::timeline::Timeline::new(&self.tape_path, viewer.state.timeline_range.clone())
+                .with_selected_range(viewer.state.selected_range.clone());
         for (thread_name, _) in &threads {
             timeline = timeline.with_row_header(*thread_name);
         }
+
+        // let modifiers = ui.input(|i| i.modifiers);
+        let mut selected_range = viewer.state.selected_range.clone();
+
         let respone = timeline.show(ui, |timeline_ui, i| {
             let events = if let Some(event) = thread_span_events.get_mut(&threads[i].1) {
                 event
@@ -158,6 +163,34 @@ impl TapeTimeline {
                                     viewer.global_time_span.start,
                                 ),
                         );
+
+                        // let response = if modifiers == egui::Modifiers::SHIFT {
+                        //     response.on_hover_cursor(egui::CursorIcon::Crosshair)
+                        // } else {
+                        //     response
+                        // };
+
+                        // if response.clicked() {
+                        //     if modifiers == egui::Modifiers::SHIFT {
+                        //         if let Action::Measure { from } = &viewer.state.current_action {
+                        //             selected_range = Some(
+                        //                 *from
+                        //                     ..=loaded_tape.timestamp_to_global_offset(
+                        //                         *timestamp,
+                        //                         viewer.global_time_span.start,
+                        //                     ),
+                        //             );
+                        //             viewer.state.current_action = Action::None;
+                        //         } else {
+                        //             viewer.state.current_action = Action::Measure {
+                        //                 from: loaded_tape.timestamp_to_global_offset(
+                        //                     *exit,
+                        //                     viewer.global_time_span.start,
+                        //                 ),
+                        //             };
+                        //         }
+                        //     }
+                        // }
                         if let Some(callsite) = callsite {
                             let mut text = format!(
                                 "{} ({:.1})\n{}",
@@ -179,6 +212,11 @@ impl TapeTimeline {
             }
         });
 
+        if respone.response.clicked() {
+            selected_range = None;
+        }
+
+        viewer.state.selected_range = selected_range;
         viewer.state.timeline_range = respone.visible_range;
     }
 }
