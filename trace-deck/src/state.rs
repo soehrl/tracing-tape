@@ -38,6 +38,19 @@ impl LoadedTape {
     ) -> time::Duration {
         self.global_offset(global_start) + Duration::nanoseconds(timestamp as i64)
     }
+
+    pub fn global_offset_to_timestamp(
+        &self,
+        global_offset: time::Duration,
+        global_start: time::OffsetDateTime,
+    ) -> u64 {
+        let global_offset_start = self.global_offset(global_start);
+        if global_offset < global_offset_start {
+            0
+        } else {
+            (global_offset - global_offset_start).whole_nanoseconds() as u64
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -67,13 +80,14 @@ impl Into<State> for LoadedTapes {
             .map(|t| t.tape.time_span().end)
             .max()
             .unwrap_or_else(time::OffsetDateTime::now_utc);
-        println!("t_min: {:?}, t_max: {:?}", t_min, t_max);
+        let timeline_duration = t_max - t_min;
         State {
             current_action: Action::None,
             callsites: Callsites::for_loaded_tapes(&self),
-            timeline: t_min..t_max,
             loaded_tapes: self,
-            timeline_range: Duration::ZERO..=(t_max - t_min),
+            timeline_start_time: t_min,
+            timeline_duration,
+            timeline_range: Duration::ZERO..=timeline_duration,
             selected_range: None,
         }
     }
@@ -219,7 +233,8 @@ pub enum Action {
 pub struct State {
     pub loaded_tapes: LoadedTapes,
     pub callsites: Callsites,
-    pub timeline: std::ops::Range<time::OffsetDateTime>,
+    pub timeline_start_time: time::OffsetDateTime,
+    pub timeline_duration: time::Duration,
     pub timeline_range: TimeRange,
     pub selected_range: Option<TimeRange>,
     pub current_action: Action,

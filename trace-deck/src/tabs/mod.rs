@@ -21,27 +21,6 @@ pub struct TabViewer<'a> {
     pub global_time_span: std::ops::Range<time::OffsetDateTime>,
 }
 
-impl TabViewer<'_> {
-    fn time_to_timestamp(&self, tape: &LoadedTape, time: time::OffsetDateTime) -> u64 {
-        let tape_time = time - tape.time_offset;
-        if tape_time < tape.tape.time_span().start {
-            0
-        } else {
-            (tape_time - tape.tape.time_span().start).whole_nanoseconds() as u64
-        }
-    }
-
-    fn time_to_timestamp_span(
-        &self,
-        tape: &LoadedTape,
-        span: &std::ops::Range<time::OffsetDateTime>,
-    ) -> std::ops::Range<u64> {
-        let start = self.time_to_timestamp(tape, span.start);
-        let end = self.time_to_timestamp(tape, span.end);
-        start..end
-    }
-}
-
 impl egui_dock::TabViewer for TabViewer<'_> {
     type Tab = Tab;
 

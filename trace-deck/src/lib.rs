@@ -294,6 +294,35 @@ impl Tape {
         }
     }
 
+    pub fn data_for_timestamp_range(
+        &self,
+        range: impl std::ops::RangeBounds<u64>,
+    ) -> ChapterDataset {
+        let start = match range.start_bound() {
+            std::ops::Bound::Included(&start) => start,
+            std::ops::Bound::Excluded(&start) => start + 1,
+            std::ops::Bound::Unbounded => 0,
+        };
+
+        let end = match range.end_bound() {
+            std::ops::Bound::Included(&end) => end + 1,
+            std::ops::Bound::Excluded(&end) => end,
+            std::ops::Bound::Unbounded => std::u64::MAX,
+        };
+
+        let mut dataset = Vec::new();
+
+        for c in &self.chapters {
+            if start < *c.summary.max_timestamp && *c.summary.min_timestamp < end {
+                if let Some(data) = c.data() {
+                    dataset.push(data);
+                }
+            }
+        }
+
+        ChapterDataset(dataset)
+    }
+
     pub fn data_for_time_span(
         &self,
         timespan: &std::ops::Range<time::OffsetDateTime>,
@@ -301,10 +330,6 @@ impl Tape {
         let mut dataset = Vec::new();
 
         for c in &self.chapters {
-            fn ranges_overlap(a: &std::ops::Range<u64>, b: &std::ops::Range<u64>) -> bool {
-                a.start < b.end && b.start < a.end
-            }
-
             let chapter_timespan = c.time_span(self.time_span.start);
             if timespan.start < chapter_timespan.end && chapter_timespan.start < timespan.end {
                 if let Some(data) = c.data() {

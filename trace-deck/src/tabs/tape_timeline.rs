@@ -39,13 +39,21 @@ fn get_thread_span_events<'a>(
 ) -> ThreadSpanEvents<'a> {
     let mut thread_span_events = HashMap::<u64, Vec<(u64, SpanEvent)>>::default();
 
-    let timestamp_range = viewer.time_to_timestamp_span(loaded_tape, &viewer.state.timeline);
-
     fn ranges_overlap(a: &std::ops::Range<u64>, b: &std::ops::Range<u64>) -> bool {
         a.start < b.end && b.start < a.end
     }
 
-    let data = loaded_tape.tape.data_for_time_span(&viewer.state.timeline);
+    // let data = loaded_tape.tape.data_for_time_span(&viewer.state.timeline);
+    let start = loaded_tape.global_offset_to_timestamp(
+        *viewer.state.timeline_range.start(),
+        viewer.global_time_span.start,
+    );
+    let end = loaded_tape.global_offset_to_timestamp(
+        *viewer.state.timeline_range.end(),
+        viewer.global_time_span.start,
+    );
+    let timestamp_range = start..end;
+    let data = loaded_tape.tape.data_for_timestamp_range(start..=end);
     for data in data.0 {
         for span in data.spans() {
             for entrance in &span.entrances {
