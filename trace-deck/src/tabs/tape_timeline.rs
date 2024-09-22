@@ -8,24 +8,6 @@ use crate::state::{Action, LoadedTape};
 
 use super::TabViewer;
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct AutoColor {
-    next_auto_color_idx: u32,
-}
-
-impl Iterator for AutoColor {
-    type Item = egui::Color32;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // Shamelessly copied from egui_plot::Plot::auto_color
-        let i = self.next_auto_color_idx;
-        self.next_auto_color_idx += 1;
-        let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
-        let h = i as f32 * golden_ratio;
-        Some(egui::epaint::Hsva::new(h, 0.85, 0.5, 1.0).into())
-    }
-}
-
 enum SpanEvent<'a> {
     Entered { exit: u64, span: &'a Span<'a> },
     Exited,
@@ -132,8 +114,6 @@ impl TapeTimeline {
             }
         });
 
-        let mut color_iter = AutoColor::default();
-
         let mut timeline =
             crate::timeline::Timeline::new(&self.tape_path, viewer.state.timeline_range.clone())
                 .with_selected_range(viewer.state.selected_range.clone());
@@ -150,18 +130,25 @@ impl TapeTimeline {
             } else {
                 return;
             };
-            let color = color_iter.next().unwrap();
 
             let mut level = 0;
             for (timestamp, event) in events {
                 match event {
                     SpanEvent::Entered { exit, span } => {
-                        let callsite = loaded_tape.tape.callsite(span.callsite);
+                        let callsite = if let Some(c) = viewer
+                            .state
+                            .callsites
+                            .get_for_tape(&self.tape_path, span.callsite)
+                        {
+                            c
+                        } else {
+                            continue;
+                        };
 
                         let response = timeline_ui.item(
                             level,
-                            callsite.map(|c| c.name.to_string()).unwrap_or_default(),
-                            color,
+                            callsite.metadata.name.to_string(),
+                            callsite.color,
                             loaded_tape.timestamp_to_global_offset(
                                 *timestamp,
                                 viewer.global_time_span.start,
@@ -199,18 +186,18 @@ impl TapeTimeline {
                         //         }
                         //     }
                         // }
-                        if let Some(callsite) = callsite {
-                            let mut text = format!(
-                                "{} ({:.1})\n{}",
-                                callsite.name,
-                                Duration::nanoseconds((*exit - *timestamp) as i64),
-                                callsite.target
-                            );
-                            if let (Some(file), Some(line)) = (&callsite.file, callsite.line) {
-                                text.push_str(&format!("\n{}:{}", file, line));
-                            }
-                            response.on_hover_text_at_pointer(text);
+                        let mut text = format!(
+                            "{} ({:.1})\n{}",
+                            callsite.metadata.name,
+                            Duration::nanoseconds((*exit - *timestamp) as i64),
+                            callsite.metadata.target
+                        );
+                        if let (Some(file), Some(line)) =
+                            (&callsite.metadata.file, callsite.metadata.line)
+                        {
+                            text.push_str(&format!("\n{}:{}", file, line));
                         }
+                        response.on_hover_text_at_pointer(text);
                         level += 1;
                     }
                     SpanEvent::Exited => {

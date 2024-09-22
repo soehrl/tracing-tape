@@ -8,7 +8,7 @@ use time::Duration;
 use trace_deck::Tape;
 use tracing_tape::Metadata;
 
-use crate::timeline::TimeRange;
+use crate::{timeline::TimeRange, utils::AutoColor};
 
 #[derive(Debug)]
 pub struct LoadedTape {
@@ -117,49 +117,9 @@ impl LoadedTapes {
     }
 }
 
-pub const CALLSITE_MARKS: [(egui_plot::MarkerShape, egui::Color32); 10] = [
-    (egui_plot::MarkerShape::Circle, egui::Color32::YELLOW),
-    (egui_plot::MarkerShape::Diamond, egui::Color32::DARK_RED),
-    (egui_plot::MarkerShape::Square, egui::Color32::DARK_GREEN),
-    (egui_plot::MarkerShape::Cross, egui::Color32::DARK_BLUE),
-    (
-        egui_plot::MarkerShape::Plus,
-        egui::Color32::from_rgb(255, 20, 147),
-    ),
-    (egui_plot::MarkerShape::Up, egui::Color32::GREEN),
-    (egui_plot::MarkerShape::Down, egui::Color32::RED),
-    (egui_plot::MarkerShape::Left, egui::Color32::GOLD),
-    (egui_plot::MarkerShape::Right, egui::Color32::BLUE),
-    (egui_plot::MarkerShape::Asterisk, egui::Color32::BROWN),
-];
-
-pub fn char_from_marker_shape(shape: egui_plot::MarkerShape) -> char {
-    match shape {
-        egui_plot::MarkerShape::Circle => '●',
-        egui_plot::MarkerShape::Diamond => '◆',
-        egui_plot::MarkerShape::Square => '■',
-        egui_plot::MarkerShape::Cross => 'x',
-        egui_plot::MarkerShape::Plus => '+',
-        egui_plot::MarkerShape::Up => '⏶',
-        egui_plot::MarkerShape::Down => '⏷',
-        egui_plot::MarkerShape::Left => '⏴',
-        egui_plot::MarkerShape::Right => '⏵',
-        egui_plot::MarkerShape::Asterisk => '*',
-    }
-}
-
 pub struct Callsite {
     pub metadata: Metadata<'static>,
-    pub mark_index: Option<usize>,
-}
-
-impl From<&Metadata<'_>> for Callsite {
-    fn from(metadata: &Metadata) -> Self {
-        Self {
-            metadata: metadata.to_static(),
-            mark_index: None,
-        }
-    }
+    pub color: egui::Color32,
 }
 
 pub struct Callsites {
@@ -195,8 +155,13 @@ impl Callsites {
         let mut tape_to_global = HashMap::default();
         let mut callsite_vec = Vec::with_capacity(callsites.len());
 
+        let mut color_iter = AutoColor::default();
+
         for (index, (metadata, tapes)) in callsites.into_iter().enumerate() {
-            let callsite = Callsite::from(metadata);
+            let callsite = Callsite {
+                metadata: metadata.to_static(),
+                color: color_iter.next().expect("color"),
+            };
             callsite_vec.push(callsite);
 
             for (path, offset) in tapes {
@@ -208,6 +173,12 @@ impl Callsites {
             callsites: callsite_vec,
             tape_to_global,
         }
+    }
+
+    pub fn get_for_tape(&self, path: &Path, offset: u64) -> Option<&Callsite> {
+        self.tape_to_global
+            .get(&(path.to_path_buf(), offset))
+            .map(|index| &self.callsites[*index])
     }
 }
 

@@ -10,6 +10,7 @@ use trace_deck::Tape;
 mod state;
 mod tabs;
 pub mod timeline;
+pub mod utils;
 
 #[derive(Debug, Default, Parser)]
 struct Args {

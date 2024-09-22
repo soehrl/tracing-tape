@@ -1,8 +1,8 @@
 use time::Duration;
 
-use crate::timeline::Timeline;
+use crate::{timeline::Timeline, utils::AutoColor};
 
-use super::{tape_timeline::AutoColor, TabViewer};
+use super::TabViewer;
 
 #[derive(Default)]
 pub struct GlobalTimeline {}
