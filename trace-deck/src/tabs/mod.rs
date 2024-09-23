@@ -14,6 +14,9 @@ use tape_timeline::TapeTimeline;
 mod callsites;
 use callsites::Callsites;
 
+mod details;
+pub use details::{Details, SelectedItem};
+
 use crate::{state::State, LoadedTape};
 
 pub struct TabViewer<'a> {
@@ -30,6 +33,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
             Tab::GlobalTimeline(timeline) => egui::Id::new(timeline.id()),
             Tab::Events(tape) => egui::Id::new(tape.id()),
             Tab::Timeline(tape) => egui::Id::new(tape.id()),
+            Tab::Details(details) => egui::Id::new(details.id()),
         }
     }
 
@@ -39,6 +43,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
             Tab::GlobalTimeline(timeline) => timeline.title(),
             Tab::Events(tape) => tape.title(),
             Tab::Timeline(tape) => tape.title(),
+            Tab::Details(details) => details.title(),
         }
     }
 
@@ -48,6 +53,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
             Tab::GlobalTimeline(timeline) => timeline.ui(ui, self),
             Tab::Events(tape) => tape.ui(ui, self),
             Tab::Timeline(tape) => tape.ui(ui, self),
+            Tab::Details(details) => details.ui(ui, self),
         }
     }
 }
@@ -57,6 +63,7 @@ pub enum Tab {
     GlobalTimeline(GlobalTimeline),
     Events(TapeEvents),
     Timeline(TapeTimeline),
+    Details(Details),
 }
 
 impl Tab {
@@ -74,5 +81,9 @@ impl Tab {
 
     pub fn timeline<P: Into<PathBuf>>(tape_path: P) -> Self {
         Self::Timeline(TapeTimeline::new(tape_path))
+    }
+
+    pub fn details() -> Self {
+        Self::Details(Details)
     }
 }

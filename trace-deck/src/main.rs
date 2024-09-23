@@ -96,8 +96,10 @@ impl TraceDeck {
             let [_, first_timeline] =
                 main_surface.split_above(root_index, 0.9, vec![Tab::timeline(path)]);
 
-            let [timeline_node, _callsites] =
+            let [timeline_node, callsites] =
                 main_surface.split_left(first_timeline, 0.1, vec![Tab::callsites()]);
+
+            let [_callsites, _details] = main_surface.split_below(callsites, 0.5, vec![Tab::details()]);
 
             let [timeline_node, event_node] =
                 main_surface.split_right(timeline_node, 0.5, vec![Tab::events(path)]);

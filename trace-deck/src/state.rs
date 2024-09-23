@@ -8,7 +8,7 @@ use time::Duration;
 use trace_deck::Tape;
 use tracing_tape::Metadata;
 
-use crate::{timeline::TimeRange, utils::AutoColor};
+use crate::{tabs::SelectedItem, timeline::TimeRange, utils::AutoColor};
 
 #[derive(Debug)]
 pub struct LoadedTape {
@@ -89,6 +89,7 @@ impl Into<State> for LoadedTapes {
             timeline_duration,
             timeline_range: Duration::ZERO..=timeline_duration,
             selected_range: None,
+            selected_item: None,
         }
     }
 }
@@ -209,4 +210,5 @@ pub struct State {
     pub timeline_range: TimeRange,
     pub selected_range: Option<TimeRange>,
     pub current_action: Action,
+    pub selected_item: Option<SelectedItem>,
 }
