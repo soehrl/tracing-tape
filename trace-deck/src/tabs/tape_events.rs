@@ -31,8 +31,7 @@ impl TapeEvents {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, viewer: &mut TabViewer) {
-        let LoadedTape { tape, .. } = if let Some(tape) = viewer.state.loaded_tapes.get(&self.tape_path)
-        {
+        let loaded_tape = if let Some(tape) = viewer.state.loaded_tapes.get(&self.tape_path) {
             tape
         } else {
             return;
@@ -40,64 +39,48 @@ impl TapeEvents {
 
         let available_height = ui.available_height();
 
-        // let offset = tape.find_event_offset(*viewer.timeline_center - *time_offset);
+        let start = loaded_tape.global_offset_to_timestamp(
+            *viewer.state.timeline_range.start(),
+            viewer.global_time_span.start,
+        );
+        let end = loaded_tape.global_offset_to_timestamp(
+            *viewer.state.timeline_range.end(),
+            viewer.global_time_span.start,
+        );
+
+        let events = loaded_tape.tape.events();
+        let start_index = match events.binary_search_by_key(&start, |event| event.timestamp) {
+            Ok(index) => index,
+            Err(index) => index,
+        };
+        let end_index = match events.binary_search_by_key(&end, |event| event.timestamp) {
+            Ok(index) => index,
+            Err(index) => index,
+        };
+
+        let events_in_range = &events[start_index..end_index];
 
         TableBuilder::new(ui)
             .auto_shrink(false)
             .max_scroll_height(available_height)
-            .column(Column::auto())
-            .column(Column::remainder().at_least(100.0))
+            .column(Column::remainder())
             .cell_layout(egui::Layout::left_to_right(Align::LEFT))
-            // .scroll_to_row(offset as usize, Some(egui::Align::Center))
-            .header(18.0, |mut header| {
-                header.col(|ui| {
-                    ui.label("Level");
-                });
-                header.col(|ui| {
-                    ui.label("Second column");
-                });
-            })
             .body(|body| {
                 let row_height = 18.0;
+                body.rows(row_height, events_in_range.len(), move |mut row| {
+                    let index = row.index();
+                    row.col(|ui| {
+                        let event = &events_in_range[index];
+                        let callsite = &loaded_tape.tape.callsites()[event.callsite_index];
 
-                let mut events = tape.events();
-                let event_count = events.remaining_len();
-                let mut last_index = None;
-
-                body.rows(row_height, event_count, move |mut row| {
-                    let row_index = row.index();
-
-                    if let Some(i) = last_index {
-                        debug_assert_eq!(row_index, i + 1);
-                        last_index = Some(row_index);
-                    } else {
-                        last_index = Some(row_index);
-                        events.skip_n(row_index);
-                    }
-
-                    let event = events.next().expect("event index out of bounds");
-
-                    if let Some(event) = event {
-                        if let Some(callsite) = tape.callsite(event.callsite) {
-                            row.col(|ui| {
-                                ui.label(callsite.level.as_str());
-                            });
-                            row.col(|ui| {
-                                callsite.field_names.iter().zip(&event.values).for_each(
-                                    |(name, value)| {
-                                        if name == "message" {
-                                            ui.label(format!("{value}"));
-                                        } else {
-                                            let _ = ui.selectable_label(
-                                                false,
-                                                format!("{name}: {value}"),
-                                            );
-                                        }
-                                    },
-                                );
-                            });
+                        for (name, value) in callsite.fields.iter().zip(event.values.iter()) {
+                            if &**name == "message" {
+                                ui.label(format!("{value}"));
+                            } else {
+                                ui.label(format!("{name} = {value}"));
+                            }
                         }
-                    }
+                    });
                 });
             });
     }

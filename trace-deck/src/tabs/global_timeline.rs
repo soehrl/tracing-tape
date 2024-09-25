@@ -30,12 +30,12 @@ impl GlobalTimeline {
             let mut color_iter = AutoColor::default();
             for (level, tape) in viewer.state.loaded_tapes.iter().enumerate() {
                 let start = tape.timestamp_to_global_offset(0, viewer.state.timeline_start_time);
-                let span = tape.tape.time_span();
+                let span = tape.adjusted_timespan();
                 let end = start + (span.end - span.start);
 
                 timeline_ui.item(
                     level,
-                    tape.tape.path().to_string_lossy().to_string(),
+                    tape.path.to_string_lossy().to_string(),
                     color_iter.next().expect("color"),
                     start..=end,
                 );

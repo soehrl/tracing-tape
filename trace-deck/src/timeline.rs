@@ -331,6 +331,11 @@ impl TimelineUi<'_> {
         }
     }
 
+    pub fn dt2dx(&self, duration: Duration) -> f32 {
+        let rel = duration / (*self.visible_range.end() - *self.visible_range.start());
+        rel as f32 * self.axis_rect.width()
+    }
+
     fn dx2dt(&self, points: f32) -> Duration {
         let rel = points / self.data_rect.width();
         (*self.visible_range.end() - *self.visible_range.start()) * rel

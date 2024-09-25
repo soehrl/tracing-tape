@@ -27,17 +27,17 @@ impl Details {
 
     fn callsite_ui(&mut self, ui: &mut egui::Ui, viewer: &mut TabViewer, callsite: usize) {
         let callsite = &mut viewer.state.callsites[callsite];
-        ui.heading(callsite.metadata.name.clone());
+        ui.heading(callsite.inner.name.to_string());
         egui::Grid::new("callsite")
             .num_columns(2)
             .striped(true)
             .show(ui, |ui| {
                 ui.label("Target");
-                ui.label(callsite.metadata.target.clone());
+                ui.label(callsite.inner.target.to_string());
                 ui.end_row();
 
                 if let (Some(file), Some(line)) =
-                    (callsite.metadata.file.as_ref(), callsite.metadata.line)
+                    (callsite.inner.file.as_ref(), callsite.inner.line)
                 {
                     ui.label("Source");
                     ui.label(format!("{}:{}", file, line));

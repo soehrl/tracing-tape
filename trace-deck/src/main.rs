@@ -5,7 +5,7 @@ use eframe::egui;
 use egui_dock::{DockArea, DockState, Style};
 use state::{LoadedTape, LoadedTapes, State};
 use tabs::{Tab, TabViewer};
-use trace_deck::Tape;
+use tracing_tape_parser::Tape;
 
 mod state;
 mod tabs;
@@ -79,7 +79,9 @@ impl TraceDeck {
                 continue;
             }
 
-            let tape = Tape::from_path(&path).unwrap();
+            
+
+            let tape = Tape::parse(&std::fs::read(&path)?);
 
             tapes.push(LoadedTape {
                 path,

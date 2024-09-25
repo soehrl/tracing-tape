@@ -12,7 +12,9 @@ egui = "0.28.1"
 egui_dock = "0.13.0"
 egui_extras = "0.28.1"
 egui_plot = "0.28.1"
+petgraph = "0.6.5"
 postcard = "1.0.10"
 rayon = "1.10.0"
 time = { version = "0.3.36", features = ["formatting", "macros"] }
-tracing-tape = { path = "../tracing-tape" }
+tracing-tape-parser = { path = "../tracing-tape-parser" }
+zerocopy = "0.7.35"

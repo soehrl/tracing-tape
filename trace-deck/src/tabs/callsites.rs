@@ -28,9 +28,9 @@ impl Callsites {
                     .iter_mut()
                     .enumerate()
                     .filter(|(_, c)| {
-                        c.metadata.name.contains(&self.filter)
-                            || c.metadata.target.contains(&self.filter)
-                            || c.metadata
+                        c.inner.name.contains(&self.filter)
+                            || c.inner.target.contains(&self.filter)
+                            || c.inner
                                 .file
                                 .as_ref()
                                 .map(|f| f.contains(&self.filter))
@@ -46,15 +46,15 @@ impl Callsites {
                             ..Default::default()
                         },
                     );
-                    job.append(&c.metadata.name, 0.0, Default::default());
+                    job.append(&c.inner.name, 0.0, Default::default());
 
                     let selected =
                         viewer.state.selected_item == Some(super::SelectedItem::Callsite(index));
 
                     let response = ui.selectable_label(selected, job);
 
-                    let mut text = format!("{} ({})", c.metadata.name, c.metadata.target,);
-                    if let (Some(file), Some(line)) = (c.metadata.file.as_ref(), c.metadata.line) {
+                    let mut text = format!("{} ({})", c.inner.name, c.inner.target,);
+                    if let (Some(file), Some(line)) = (c.inner.file.as_ref(), c.inner.line) {
                         text.push_str(&format!("\n{}:{}", file, line));
                     }
 

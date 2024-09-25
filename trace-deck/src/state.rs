@@ -5,8 +5,8 @@ use std::{
 
 use ahash::HashMap;
 use time::Duration;
-use trace_deck::Tape;
-use tracing_tape::Metadata;
+use tracing_tape_parser::Tape;
+// use tracing_tape::Metadata;
 
 use crate::{tabs::SelectedItem, timeline::TimeRange, utils::AutoColor};
 
@@ -19,21 +19,31 @@ pub struct LoadedTape {
 
 impl LoadedTape {
     pub fn adjusted_timespan(&self) -> std::ops::Range<time::OffsetDateTime> {
-        let tape_time_span = self.tape.time_span();
-        tape_time_span.start + self.time_offset..tape_time_span.end + self.time_offset
+        let time_range = self.tape.time_range();
+        let start_time = time::OffsetDateTime::from_unix_timestamp_nanos(*time_range.start())
+            .unwrap()
+            + self.time_offset;
+        let end_time = time::OffsetDateTime::from_unix_timestamp_nanos(*time_range.end()).unwrap()
+            + self.time_offset;
+        start_time..end_time
     }
 
-    pub fn timestamp_date_time(&self, timestamp: u64) -> time::OffsetDateTime {
-        self.tape.timestamp_date_time(timestamp) + self.time_offset
+    pub fn timestamp_date_time(&self, timestamp: i64) -> time::OffsetDateTime {
+        let base = time::OffsetDateTime::from_unix_timestamp_nanos(*self.tape.time_range().start())
+            .unwrap();
+        base + Duration::nanoseconds(timestamp) + self.time_offset
     }
 
     pub fn global_offset(&self, global_start: time::OffsetDateTime) -> time::Duration {
-        self.tape.time_span().start - (global_start + self.time_offset)
+        let time_range = self.tape.time_range();
+        let start_time =
+            time::OffsetDateTime::from_unix_timestamp_nanos(*time_range.start()).unwrap();
+        start_time - (global_start + self.time_offset)
     }
 
     pub fn timestamp_to_global_offset(
         &self,
-        timestamp: u64,
+        timestamp: i64,
         global_start: time::OffsetDateTime,
     ) -> time::Duration {
         self.global_offset(global_start) + Duration::nanoseconds(timestamp as i64)
@@ -43,12 +53,12 @@ impl LoadedTape {
         &self,
         global_offset: time::Duration,
         global_start: time::OffsetDateTime,
-    ) -> u64 {
+    ) -> i64 {
         let global_offset_start = self.global_offset(global_start);
         if global_offset < global_offset_start {
             0
         } else {
-            (global_offset - global_offset_start).whole_nanoseconds() as u64
+            (global_offset - global_offset_start).whole_nanoseconds() as i64
         }
     }
 }
@@ -72,12 +82,12 @@ impl Into<State> for LoadedTapes {
     fn into(self) -> State {
         let t_min = self
             .iter()
-            .map(|t| t.tape.time_span().start)
+            .map(|t| t.adjusted_timespan().start)
             .min()
             .unwrap_or_else(time::OffsetDateTime::now_utc);
         let t_max = self
             .iter()
-            .map(|t| t.tape.time_span().end)
+            .map(|t| t.adjusted_timespan().end)
             .max()
             .unwrap_or_else(time::OffsetDateTime::now_utc);
         let timeline_duration = t_max - t_min;
@@ -119,25 +129,25 @@ impl LoadedTapes {
 }
 
 pub struct Callsite {
-    pub metadata: Metadata<'static>,
+    pub inner: tracing_tape_parser::Callsite,
     pub color: egui::Color32,
 }
 
 pub struct Callsites {
     callsites: Vec<Callsite>,
-    tape_to_global: HashMap<(PathBuf, u64), usize>,
+    tape_to_global: HashMap<(PathBuf, usize), usize>,
 }
 
 impl Callsites {
     pub fn for_loaded_tapes(tapes: &LoadedTapes) -> Self {
         // First: gather all callsites and their corresponding offset in each tape
-        let mut callsites: HashMap<&Metadata, Vec<(&PathBuf, u64)>> = HashMap::default();
+        let mut callsites: HashMap<&tracing_tape_parser::Callsite, Vec<(&PathBuf, usize)>> = HashMap::default();
         for tape in &**tapes {
-            for (offset, metadata) in tape.tape.callsites() {
-                if let Some(callsite) = callsites.get_mut(&metadata) {
-                    callsite.push((&tape.path, *offset));
+            for (index, callsite) in tape.tape.callsites().iter().enumerate() {
+                if let Some(callsite) = callsites.get_mut(&callsite) {
+                    callsite.push((&tape.path, index));
                 } else {
-                    callsites.insert(metadata, vec![(&tape.path, *offset)]);
+                    callsites.insert(callsite, vec![(&tape.path, index)]);
                 }
             }
         }
@@ -158,9 +168,9 @@ impl Callsites {
 
         let mut color_iter = AutoColor::default();
 
-        for (index, (metadata, tapes)) in callsites.into_iter().enumerate() {
+        for (index, (callsite, tapes)) in callsites.into_iter().enumerate() {
             let callsite = Callsite {
-                metadata: metadata.to_static(),
+                inner: callsite.clone(),
                 color: color_iter.next().expect("color"),
             };
             callsite_vec.push(callsite);
@@ -176,9 +186,9 @@ impl Callsites {
         }
     }
 
-    pub fn get_for_tape(&self, path: &Path, offset: u64) -> Option<&Callsite> {
+    pub fn get_for_tape(&self, path: &Path, index: usize) -> Option<&Callsite> {
         self.tape_to_global
-            .get(&(path.to_path_buf(), offset))
+            .get(&(path.to_path_buf(), index))
             .map(|index| &self.callsites[*index])
     }
 }

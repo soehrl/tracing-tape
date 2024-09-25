@@ -2,68 +2,68 @@ use std::path::PathBuf;
 
 use ahash::HashMap;
 use time::Duration;
-use tracing_tape::Span;
+use tracing_tape_parser::Span;
 
 use crate::state::{Action, LoadedTape};
 
 use super::TabViewer;
 
-enum SpanEvent<'a> {
-    Entered { exit: u64, span: &'a Span<'a> },
-    Exited,
-}
+// enum SpanEvent<'a> {
+//     Entered { exit: u64, span: &'a Span<'a> },
+//     Exited,
+// }
 
-type ThreadSpanEvents<'a> = HashMap<u64, Vec<(u64, SpanEvent<'a>)>>;
+// type ThreadSpanEvents<'a> = HashMap<u64, Vec<(u64, SpanEvent<'a>)>>;
 
-fn get_thread_span_events<'a>(
-    viewer: &TabViewer,
-    loaded_tape: &'a LoadedTape,
-) -> ThreadSpanEvents<'a> {
-    let mut thread_span_events = HashMap::<u64, Vec<(u64, SpanEvent)>>::default();
+// fn get_thread_span_events<'a>(
+//     viewer: &TabViewer,
+//     loaded_tape: &'a LoadedTape,
+// ) -> ThreadSpanEvents<'a> {
+//     let mut thread_span_events = HashMap::<u64, Vec<(u64, SpanEvent)>>::default();
 
-    fn ranges_overlap(a: &std::ops::Range<u64>, b: &std::ops::Range<u64>) -> bool {
-        a.start < b.end && b.start < a.end
-    }
+//     fn ranges_overlap(a: &std::ops::Range<u64>, b: &std::ops::Range<u64>) -> bool {
+//         a.start < b.end && b.start < a.end
+//     }
 
-    // let data = loaded_tape.tape.data_for_time_span(&viewer.state.timeline);
-    let start = loaded_tape.global_offset_to_timestamp(
-        *viewer.state.timeline_range.start(),
-        viewer.global_time_span.start,
-    );
-    let end = loaded_tape.global_offset_to_timestamp(
-        *viewer.state.timeline_range.end(),
-        viewer.global_time_span.start,
-    );
-    let timestamp_range = start..end;
-    let data = loaded_tape.tape.data_for_timestamp_range(start..=end);
-    for data in data.0 {
-        for span in data.spans() {
-            for entrance in &span.entrances {
-                if !ranges_overlap(&(entrance.enter..entrance.exit), &timestamp_range) {
-                    continue;
-                }
+//     // let data = loaded_tape.tape.data_for_time_span(&viewer.state.timeline);
+//     let start = loaded_tape.global_offset_to_timestamp(
+//         *viewer.state.timeline_range.start(),
+//         viewer.global_time_span.start,
+//     );
+//     let end = loaded_tape.global_offset_to_timestamp(
+//         *viewer.state.timeline_range.end(),
+//         viewer.global_time_span.start,
+//     );
+//     let timestamp_range = start..end;
+//     let data = loaded_tape.tape.data_for_timestamp_range(start..=end);
+//     for data in data.0 {
+//         for span in data.spans() {
+//             for entrance in &span.entrances {
+//                 if !ranges_overlap(&(entrance.enter..entrance.exit), &timestamp_range) {
+//                     continue;
+//                 }
 
-                let thread_events = thread_span_events
-                    .entry(entrance.thread_id)
-                    .or_insert_with(Vec::new);
-                thread_events.push((
-                    entrance.enter,
-                    SpanEvent::Entered {
-                        exit: entrance.exit,
-                        span,
-                    },
-                ));
-                thread_events.push((entrance.exit, SpanEvent::Exited));
-            }
-        }
-    }
+//                 let thread_events = thread_span_events
+//                     .entry(entrance.thread_id)
+//                     .or_insert_with(Vec::new);
+//                 thread_events.push((
+//                     entrance.enter,
+//                     SpanEvent::Entered {
+//                         exit: entrance.exit,
+//                         span,
+//                     },
+//                 ));
+//                 thread_events.push((entrance.exit, SpanEvent::Exited));
+//             }
+//         }
+//     }
 
-    for (_, events) in &mut thread_span_events {
-        events.sort_by_key(|(timestamp, _)| *timestamp);
-    }
+//     for (_, events) in &mut thread_span_events {
+//         events.sort_by_key(|(timestamp, _)| *timestamp);
+//     }
 
-    thread_span_events
-}
+//     thread_span_events
+// }
 
 pub struct TapeTimeline {
     title: String,
@@ -98,9 +98,49 @@ impl TapeTimeline {
             return;
         };
 
-        let mut thread_span_events = get_thread_span_events(viewer, loaded_tape);
+        let start = loaded_tape.global_offset_to_timestamp(
+            *viewer.state.timeline_range.start(),
+            viewer.global_time_span.start,
+        );
+        let end = loaded_tape.global_offset_to_timestamp(
+            *viewer.state.timeline_range.end(),
+            viewer.global_time_span.start,
+        );
 
-        let mut threads = loaded_tape.tape.threads().collect::<Vec<_>>();
+        let t = std::time::Instant::now();
+        let mut relevant_root_spans = Vec::new();
+        let spans = loaded_tape.tape.spans();
+        println!("");
+        for span_id in loaded_tape.tape.root_spans() {
+            let span = spans.node_weight(*span_id).unwrap();
+            // println!("{start}-{end}: {}-{}", span.opened, span.closed);
+            if span.opened > end || span.closed < start {
+                continue;
+            }
+            relevant_root_spans.push(*span_id);
+        }
+        println!(
+            "Time to get relevant spans: {:?}: {}({})",
+            t.elapsed(),
+            relevant_root_spans.len(),
+            loaded_tape.tape.root_spans().len()
+        );
+
+        // let mut thread_span_events = get_thread_span_events(viewer, loaded_tape);
+
+        let mut threads = loaded_tape
+            .tape
+            .threads()
+            .iter()
+            .map(|(id, name)| {
+                if let Some(name) = name {
+                    (name.to_string(), *id)
+                } else {
+                    (format!("Thread {:>8x}", id), *id)
+                }
+            })
+            .collect::<Vec<_>>();
+
         threads.sort_by(|(name_a, _), (name_b, _)| match name_a.cmp(name_b) {
             std::cmp::Ordering::Equal => std::cmp::Ordering::Equal,
             ordering => {
@@ -118,93 +158,175 @@ impl TapeTimeline {
             crate::timeline::Timeline::new(&self.tape_path, viewer.state.timeline_range.clone())
                 .with_selected_range(viewer.state.selected_range.clone());
         for (thread_name, _) in &threads {
-            timeline = timeline.with_row_header(*thread_name);
+            timeline = timeline.with_row_header(thread_name.clone());
         }
 
-        // let modifiers = ui.input(|i| i.modifiers);
+        // // let modifiers = ui.input(|i| i.modifiers);
         let mut selected_range = viewer.state.selected_range.clone();
+        // let mut span_relevant = Vec::new();
 
         let respone = timeline.show(ui, |timeline_ui, i| {
-            let events = if let Some(event) = thread_span_events.get_mut(&threads[i].1) {
-                event
-            } else {
-                return;
-            };
-
             let mut level = 0;
-            for (timestamp, event) in events {
+            let t = std::time::Instant::now();
+            petgraph::visit::depth_first_search(spans, relevant_root_spans.clone(), |event| {
                 match event {
-                    SpanEvent::Entered { exit, span } => {
-                        let callsite = if let Some(c) = viewer
+                    petgraph::visit::DfsEvent::Discover(n, t) => {
+                        let span = spans.node_weight(n).unwrap();
+                        let callsite = viewer
                             .state
                             .callsites
-                            .get_for_tape(&self.tape_path, span.callsite)
-                        {
-                            c
-                        } else {
-                            continue;
-                        };
+                            .get_for_tape(&self.tape_path, span.callsite_index)
+                            .unwrap();
 
-                        let response = timeline_ui.item(
-                            level,
-                            callsite.metadata.name.to_string(),
-                            callsite.color,
-                            loaded_tape.timestamp_to_global_offset(
-                                *timestamp,
-                                viewer.global_time_span.start,
-                            )
-                                ..=loaded_tape.timestamp_to_global_offset(
-                                    *exit,
-                                    viewer.global_time_span.start,
-                                ),
-                        );
+                        let opened = loaded_tape
+                            .timestamp_to_global_offset(span.opened, viewer.global_time_span.start);
+                        let closed = loaded_tape
+                            .timestamp_to_global_offset(span.closed, viewer.global_time_span.start);
 
-                        // let response = if modifiers == egui::Modifiers::SHIFT {
-                        //     response.on_hover_cursor(egui::CursorIcon::Crosshair)
-                        // } else {
-                        //     response
-                        // };
+                        let width = timeline_ui.dt2dx(closed - opened);
+                        if width > 1.0 {
+                            let color = if width < 10.0 {
+                                callsite.color.linear_multiply((width - 1.0) / 9.0)
+                            } else {
+                                callsite.color
+                            };
 
-                        // if response.clicked() {
-                        //     if modifiers == egui::Modifiers::SHIFT {
-                        //         if let Action::Measure { from } = &viewer.state.current_action {
-                        //             selected_range = Some(
-                        //                 *from
-                        //                     ..=loaded_tape.timestamp_to_global_offset(
-                        //                         *timestamp,
-                        //                         viewer.global_time_span.start,
-                        //                     ),
-                        //             );
-                        //             viewer.state.current_action = Action::None;
-                        //         } else {
-                        //             viewer.state.current_action = Action::Measure {
-                        //                 from: loaded_tape.timestamp_to_global_offset(
-                        //                     *exit,
-                        //                     viewer.global_time_span.start,
-                        //                 ),
-                        //             };
-                        //         }
-                        //     }
-                        // }
-                        let mut text = format!(
-                            "{} ({:.1})\n{}",
-                            callsite.metadata.name,
-                            Duration::nanoseconds((*exit - *timestamp) as i64),
-                            callsite.metadata.target
-                        );
-                        if let (Some(file), Some(line)) =
-                            (&callsite.metadata.file, callsite.metadata.line)
-                        {
-                            text.push_str(&format!("\n{}:{}", file, line));
+                            let response = timeline_ui.item(
+                                level,
+                                callsite.inner.name.to_string(),
+                                color,
+                                opened..=closed,
+                            );
+
+                            let mut text = format!(
+                                "{} ({:.1})\n{}",
+                                callsite.inner.name,
+                                Duration::nanoseconds(span.closed - span.opened),
+                                callsite.inner.target
+                            );
+                            if let (Some(file), Some(line)) =
+                                (&callsite.inner.file, callsite.inner.line)
+                            {
+                                text.push_str(&format!("\n{}:{}", file, line));
+                            }
+
+                            for (field, value) in
+                                callsite.inner.fields.iter().zip(span.values.iter())
+                            {
+                                text.push_str(&format!("\n{} = {}", field, value));
+                            }
+                            response.on_hover_text_at_pointer(text);
                         }
-                        response.on_hover_text_at_pointer(text);
+
                         level += 1;
+
+                        if timeline_ui.dt2dx(closed - opened) > 5.0 {
+                            petgraph::visit::Control::<()>::Continue
+                        } else {
+                            petgraph::visit::Control::<()>::Prune
+                        }
                     }
-                    SpanEvent::Exited => {
+                    petgraph::visit::DfsEvent::Finish(n, t) => {
                         level -= 1;
+                        petgraph::visit::Control::<()>::Continue
+                    }
+                    petgraph::visit::DfsEvent::TreeEdge(n, t) => {
+                        petgraph::visit::Control::<()>::Continue
+                    }
+                    petgraph::visit::DfsEvent::BackEdge(n, t) => {
+                        petgraph::visit::Control::<()>::Continue
+                    }
+                    petgraph::visit::DfsEvent::CrossForwardEdge(n, t) => {
+                        petgraph::visit::Control::<()>::Continue
                     }
                 }
-            }
+            });
+            println!(
+                "Time to show spans: {:?}: {}",
+                t.elapsed(),
+                relevant_root_spans.len()
+            );
+
+            //     let events = if let Some(event) = thread_span_events.get_mut(&threads[i].1) {
+            //         event
+            //     } else {
+            //         return;
+            //     };
+            //
+            //     let mut level = 0;
+            //     for (timestamp, event) in events {
+            //         match event {
+            //             SpanEvent::Entered { exit, span } => {
+            //                 let callsite = if let Some(c) = viewer
+            //                     .state
+            //                     .callsites
+            //                     .get_for_tape(&self.tape_path, span.callsite)
+            //                 {
+            //                     c
+            //                 } else {
+            //                     continue;
+            //                 };
+
+            //                 let response = timeline_ui.item(
+            //                     level,
+            //                     callsite.metadata.name.to_string(),
+            //                     callsite.color,
+            //                     loaded_tape.timestamp_to_global_offset(
+            //                         *timestamp,
+            //                         viewer.global_time_span.start,
+            //                     )
+            //                         ..=loaded_tape.timestamp_to_global_offset(
+            //                             *exit,
+            //                             viewer.global_time_span.start,
+            //                         ),
+            //                 );
+
+            //                 // let response = if modifiers == egui::Modifiers::SHIFT {
+            //                 //     response.on_hover_cursor(egui::CursorIcon::Crosshair)
+            //                 // } else {
+            //                 //     response
+            //                 // };
+
+            //                 // if response.clicked() {
+            //                 //     if modifiers == egui::Modifiers::SHIFT {
+            //                 //         if let Action::Measure { from } = &viewer.state.current_action {
+            //                 //             selected_range = Some(
+            //                 //                 *from
+            //                 //                     ..=loaded_tape.timestamp_to_global_offset(
+            //                 //                         *timestamp,
+            //                 //                         viewer.global_time_span.start,
+            //                 //                     ),
+            //                 //             );
+            //                 //             viewer.state.current_action = Action::None;
+            //                 //         } else {
+            //                 //             viewer.state.current_action = Action::Measure {
+            //                 //                 from: loaded_tape.timestamp_to_global_offset(
+            //                 //                     *exit,
+            //                 //                     viewer.global_time_span.start,
+            //                 //                 ),
+            //                 //             };
+            //                 //         }
+            //                 //     }
+            //                 // }
+            //                 let mut text = format!(
+            //                     "{} ({:.1})\n{}",
+            //                     callsite.metadata.name,
+            //                     Duration::nanoseconds((*exit - *timestamp) as i64),
+            //                     callsite.metadata.target
+            //                 );
+            //                 if let (Some(file), Some(line)) =
+            //                     (&callsite.metadata.file, callsite.metadata.line)
+            //                 {
+            //                     text.push_str(&format!("\n{}:{}", file, line));
+            //                 }
+            //                 response.on_hover_text_at_pointer(text);
+            //                 level += 1;
+            //             }
+            //             SpanEvent::Exited => {
+            //                 level -= 1;
+            //             }
+            //         }
+            //     }
         });
 
         if respone.response.clicked() {
