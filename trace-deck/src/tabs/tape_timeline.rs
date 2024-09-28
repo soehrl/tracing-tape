@@ -107,10 +107,8 @@ impl TapeTimeline {
             viewer.global_time_span.start,
         );
 
-        let t = std::time::Instant::now();
         let mut relevant_root_spans = Vec::new();
         let spans = loaded_tape.tape.spans();
-        println!("");
         for span_id in loaded_tape.tape.root_spans() {
             let span = spans.node_weight(*span_id).unwrap();
             // println!("{start}-{end}: {}-{}", span.opened, span.closed);
@@ -119,14 +117,6 @@ impl TapeTimeline {
             }
             relevant_root_spans.push(*span_id);
         }
-        println!(
-            "Time to get relevant spans: {:?}: {}({})",
-            t.elapsed(),
-            relevant_root_spans.len(),
-            loaded_tape.tape.root_spans().len()
-        );
-
-        // let mut thread_span_events = get_thread_span_events(viewer, loaded_tape);
 
         let mut threads = loaded_tape
             .tape
@@ -167,7 +157,6 @@ impl TapeTimeline {
 
         let respone = timeline.show(ui, |timeline_ui, i| {
             let mut level = 0;
-            let t = std::time::Instant::now();
             petgraph::visit::depth_first_search(spans, relevant_root_spans.clone(), |event| {
                 match event {
                     petgraph::visit::DfsEvent::Discover(n, t) => {
@@ -241,11 +230,6 @@ impl TapeTimeline {
                     }
                 }
             });
-            println!(
-                "Time to show spans: {:?}: {}",
-                t.elapsed(),
-                relevant_root_spans.len()
-            );
 
             //     let events = if let Some(event) = thread_span_events.get_mut(&threads[i].1) {
             //         event

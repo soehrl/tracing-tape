@@ -84,13 +84,16 @@ impl Into<State> for LoadedTapes {
             .iter()
             .map(|t| t.adjusted_timespan().start)
             .min()
-            .unwrap_or_else(time::OffsetDateTime::now_utc);
+            .unwrap_or_else(|| time::OffsetDateTime::from_unix_timestamp(0).expect("time"));
+
         let t_max = self
             .iter()
             .map(|t| t.adjusted_timespan().end)
             .max()
-            .unwrap_or_else(time::OffsetDateTime::now_utc);
+            .unwrap_or_else(|| time::OffsetDateTime::from_unix_timestamp(0).expect("time"));
+
         let timeline_duration = t_max - t_min;
+
         State {
             current_action: Action::None,
             callsites: Callsites::for_loaded_tapes(&self),
@@ -141,7 +144,8 @@ pub struct Callsites {
 impl Callsites {
     pub fn for_loaded_tapes(tapes: &LoadedTapes) -> Self {
         // First: gather all callsites and their corresponding offset in each tape
-        let mut callsites: HashMap<&tracing_tape_parser::Callsite, Vec<(&PathBuf, usize)>> = HashMap::default();
+        let mut callsites: HashMap<&tracing_tape_parser::Callsite, Vec<(&PathBuf, usize)>> =
+            HashMap::default();
         for tape in &**tapes {
             for (index, callsite) in tape.tape.callsites().iter().enumerate() {
                 if let Some(callsite) = callsites.get_mut(&callsite) {

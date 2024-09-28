@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use clap::Parser;
 use eframe::egui;
@@ -20,6 +20,7 @@ struct Args {
     num_threads: Option<usize>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn main() -> Result<(), eframe::Error> {
     let mut native_options = eframe::NativeOptions::default();
     native_options.viewport = egui::ViewportBuilder::default().with_maximized(true);
@@ -29,6 +30,34 @@ fn main() -> Result<(), eframe::Error> {
         native_options,
         Box::new(|cc| Ok(Box::new(TraceDeck::new(cc)))),
     )
+}
+
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    let web_options = eframe::WebOptions::default();
+
+    wasm_bindgen_futures::spawn_local(async {
+        // use eframe::wasm_bindgen::JsCast;
+
+        // let document = web_sys::window()
+        //     .expect("No window")
+        //     .document()
+        //     .expect("No document");
+
+        // let canvas = document
+        //     .get_element_by_id("the_canvas_id")
+        //     .expect("Failed to find the_canvas_id")
+        //     .dyn_into::<web_sys::HtmlCanvasElement>()
+        //     .expect("the_canvas_id was not a HtmlCanvasElement");
+
+        let start_result = eframe::WebRunner::new()
+            .start(
+                "eframe",
+                web_options,
+                Box::new(|cc| Ok(Box::new(TraceDeck::new(cc)))),
+            )
+            .await;
+    });
 }
 
 struct TraceDeck {
@@ -55,7 +84,11 @@ impl TraceDeck {
         let (dock_state, tapes) = if args.tape_files.is_empty() {
             (DockState::new(vec![Tab::welcome()]), LoadedTapes::default())
         } else {
-            Self::load_files(args.tape_files.iter()).unwrap()
+            Self::load_files(args.tape_files.iter().map(|path| {
+                let path = path.into();
+                let file = std::fs::read(&path).unwrap();
+                (path, file.into())
+            })).unwrap()
         };
 
         Self {
@@ -64,13 +97,16 @@ impl TraceDeck {
         }
     }
 
-    fn load_files(
-        files: impl Iterator<Item = impl Into<PathBuf>>,
-    ) -> std::io::Result<(DockState<Tab>, LoadedTapes)> {
+    fn load_files<I>(
+        files: I,
+    ) -> std::io::Result<(DockState<Tab>, LoadedTapes)> 
+    where
+        I: Iterator<Item = (PathBuf, Arc<[u8]>)>,
+    {
         let mut dock_state = DockState::new(vec![Tab::global_timeline()]);
         let mut tapes: Vec<LoadedTape> = Vec::with_capacity(files.size_hint().1.unwrap_or(0));
 
-        for path in files {
+        for (path, file) in files {
             let path = path.into();
 
             // De-duplicate files.
@@ -79,9 +115,7 @@ impl TraceDeck {
                 continue;
             }
 
-            
-
-            let tape = Tape::parse(&std::fs::read(&path)?);
+            let tape = Tape::parse(&file);
 
             tapes.push(LoadedTape {
                 path,
@@ -101,7 +135,8 @@ impl TraceDeck {
             let [timeline_node, callsites] =
                 main_surface.split_left(first_timeline, 0.1, vec![Tab::callsites()]);
 
-            let [_callsites, _details] = main_surface.split_below(callsites, 0.5, vec![Tab::details()]);
+            let [_callsites, _details] =
+                main_surface.split_below(callsites, 0.5, vec![Tab::details()]);
 
             let [timeline_node, event_node] =
                 main_surface.split_right(timeline_node, 0.5, vec![Tab::events(path)]);
@@ -132,7 +167,7 @@ impl eframe::App for TraceDeck {
                 }
             }
             let global_time_span = global_time_span.unwrap_or_else(|| {
-                let now = time::OffsetDateTime::now_utc();
+                let now = time::OffsetDateTime::from_unix_timestamp(0).expect("time");
                 now..now + time::Duration::MINUTE
             });
 
@@ -154,7 +189,11 @@ impl eframe::App for TraceDeck {
                 raw_input
                     .dropped_files
                     .iter()
-                    .map(|f| f.path.as_ref().unwrap()),
+                    .map(|f| {
+                        let path = f.path.clone().unwrap_or_else(|| (&f.name).into());
+                        let bytes = f.bytes.clone().unwrap_or_else(|| std::fs::read(&path).unwrap().into());
+                        (path, bytes)
+                    })
             )
             .unwrap();
             self.dock_state = dock_state;
