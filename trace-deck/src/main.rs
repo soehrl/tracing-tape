@@ -53,7 +53,7 @@ impl TraceDeck {
         }
 
         let (dock_state, tapes) = if args.tape_files.is_empty() {
-            todo!()
+            (DockState::new(vec![Tab::welcome()]), LoadedTapes::default())
         } else {
             Self::load_files(args.tape_files.iter()).unwrap()
         };
