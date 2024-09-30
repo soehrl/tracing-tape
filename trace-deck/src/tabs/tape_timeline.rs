@@ -6,7 +6,7 @@ use tracing_tape_parser::Span;
 
 use crate::state::{Action, LoadedTape};
 
-use super::TabViewer;
+use super::{SelectedItem, TabViewer};
 
 // enum SpanEvent<'a> {
 //     Entered { exit: u64, span: &'a Span<'a> },
@@ -182,29 +182,36 @@ impl TapeTimeline {
 
                             let response = timeline_ui.item(
                                 level,
-                                callsite.inner.name.to_string(),
+                                callsite.inner.name().to_string(),
                                 color,
                                 opened..=closed,
                             );
 
                             let mut text = format!(
                                 "{} ({:.1})\n{}",
-                                callsite.inner.name,
+                                callsite.inner.name(),
                                 Duration::nanoseconds(span.closed - span.opened),
-                                callsite.inner.target
+                                callsite.inner.target()
                             );
                             if let (Some(file), Some(line)) =
-                                (&callsite.inner.file, callsite.inner.line)
+                                (&callsite.inner.file(), callsite.inner.line())
                             {
                                 text.push_str(&format!("\n{}:{}", file, line));
                             }
 
                             for (field, value) in
-                                callsite.inner.fields.iter().zip(span.values.iter())
+                                callsite.inner.fields().iter().zip(span.values.iter())
                             {
                                 text.push_str(&format!("\n{} = {}", field, value));
                             }
-                            response.on_hover_text_at_pointer(text);
+                            let response = response.on_hover_text_at_pointer(text);
+
+                            if response.clicked() {
+                                viewer.state.selected_item = Some(SelectedItem::Span {
+                                    span_index: n,
+                                    tape: self.tape_path.clone(),
+                                });
+                            }
                         }
 
                         level += 1;

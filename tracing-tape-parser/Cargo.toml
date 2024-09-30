@@ -9,3 +9,4 @@ tracing-tape = { path = "../tracing-tape" }
 ahash = "0.8.11"
 smallvec = "1.13.2"
 petgraph = "0.6.5"
+tracing.workspace = true

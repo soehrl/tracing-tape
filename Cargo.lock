@@ -3474,6 +3474,7 @@ dependencies = [
  "ahash",
  "petgraph",
  "smallvec",
+ "tracing",
  "tracing-tape",
  "zerocopy",
 ]

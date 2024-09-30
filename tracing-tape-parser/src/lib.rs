@@ -382,6 +382,8 @@ pub struct Field {
 #[derive(Debug)]
 pub struct IntermediateCallsite {
     id: u64,
+    kind: tracing::metadata::Kind,
+    level: tracing::Level,
     name: Arc<str>,
     target: Arc<str>,
     module_path: Arc<str>,
@@ -391,13 +393,93 @@ pub struct IntermediateCallsite {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub struct Callsite {
+pub struct Metadata {
+    pub level: tracing::Level,
     pub name: Arc<str>,
     pub target: Arc<str>,
     pub module_path: Arc<str>,
     pub file: Option<Arc<str>>,
     pub line: Option<u32>,
     pub fields: Arc<[Arc<str>]>,
+}
+
+impl From<IntermediateCallsite> for Metadata {
+    fn from(value: IntermediateCallsite) -> Self {
+        Self {
+            level: value.level,
+            name: value.name,
+            target: value.target,
+            module_path: value.module_path,
+            file: value.file,
+            line: value.line,
+            fields: value
+                .fields
+                .into_iter()
+                .map(|field| field.name)
+                .collect::<Vec<_>>()
+                .into(),
+        }
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub enum Callsite {
+    Event(Metadata),
+    Span(Metadata),
+}
+
+impl Callsite {
+    pub fn metadata(&self) -> &Metadata {
+        match self {
+            Self::Event(metadata) => metadata,
+            Self::Span(metadata) => metadata,
+        }
+    }
+
+    pub fn kind(&self) -> tracing::metadata::Kind {
+        match self {
+            Self::Event(_) => tracing::metadata::Kind::EVENT,
+            Self::Span(_) => tracing::metadata::Kind::SPAN,
+        }
+    }
+
+    pub fn level(&self) -> tracing::Level {
+        self.metadata().level
+    }
+
+    pub fn name(&self) -> &str {
+        &self.metadata().name
+    }
+
+    pub fn target(&self) -> &str {
+        &self.metadata().target
+    }
+
+    pub fn module_path(&self) -> &str {
+        &self.metadata().module_path
+    }
+
+    pub fn file(&self) -> Option<&str> {
+        self.metadata().file.as_deref()
+    }
+
+    pub fn line(&self) -> Option<u32> {
+        self.metadata().line
+    }
+
+    pub fn fields(&self) -> &[Arc<str>] {
+        &self.metadata().fields
+    }
+}
+
+impl From<IntermediateCallsite> for Callsite {
+    fn from(value: IntermediateCallsite) -> Self {
+        if value.kind == tracing::metadata::Kind::SPAN {
+            Self::Span(value.into())
+        } else {
+            Self::Event(value.into())
+        }
+    }
 }
 
 impl IntermediateCallsite {
@@ -428,6 +510,8 @@ impl IntermediateCallsite {
 
         let callsite = Self {
             id: callsite_record.id.get(),
+            kind: callsite_record.info.kind().expect("invalid kind"),
+            level: callsite_record.info.level().expect("invalid level"),
             name,
             target,
             module_path,
@@ -466,22 +550,7 @@ impl TapeData {
                     callsite_field_map.insert((callsite.id, field.id), index);
                 }
 
-                let fields = callsite
-                    .fields
-                    .into_iter()
-                    .map(|field| field.name)
-                    .collect::<Vec<_>>();
-
-                let callsite = Callsite {
-                    name: callsite.name,
-                    target: callsite.target,
-                    module_path: callsite.module_path,
-                    file: callsite.file,
-                    line: callsite.line,
-                    fields: Arc::from(fields.into_boxed_slice()),
-                };
-
-                callsite
+                callsite.into()
             })
             .collect::<Vec<_>>();
 

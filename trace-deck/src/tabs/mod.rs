@@ -23,6 +23,7 @@ use crate::{state::State, LoadedTape};
 pub struct TabViewer<'a> {
     pub state: &'a mut State,
     pub global_time_span: std::ops::Range<time::OffsetDateTime>,
+    pub new_tabs: Vec<Tab>,
 }
 
 impl egui_dock::TabViewer for TabViewer<'_> {

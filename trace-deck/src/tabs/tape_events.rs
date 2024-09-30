@@ -73,7 +73,7 @@ impl TapeEvents {
                         let event = &events_in_range[index];
                         let callsite = &loaded_tape.tape.callsites()[event.callsite_index];
 
-                        for (name, value) in callsite.fields.iter().zip(event.values.iter()) {
+                        for (name, value) in callsite.fields().iter().zip(event.values.iter()) {
                             if &**name == "message" {
                                 ui.label(format!("{value}"));
                             } else {

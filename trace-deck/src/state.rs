@@ -8,7 +8,7 @@ use time::Duration;
 use tracing_tape_parser::Tape;
 // use tracing_tape::Metadata;
 
-use crate::{tabs::SelectedItem, timeline::TimeRange, utils::AutoColor};
+use crate::{statistics::CallsiteStatistics, tabs::SelectedItem, timeline::TimeRange, utils::AutoColor};
 
 #[derive(Debug)]
 pub struct LoadedTape {
@@ -131,9 +131,15 @@ impl LoadedTapes {
     }
 }
 
+pub struct CallsiteTapeData {
+    pub callsite_index: usize,
+    pub statistics: Option<CallsiteStatistics>,
+}
+
 pub struct Callsite {
     pub inner: tracing_tape_parser::Callsite,
     pub color: egui::Color32,
+    pub tape_data: HashMap<PathBuf, CallsiteTapeData>,
 }
 
 pub struct Callsites {
@@ -159,11 +165,11 @@ impl Callsites {
         // Then sort them by target>filename>line>name
         let mut callsites = callsites.drain().collect::<Vec<_>>();
         callsites.sort_by(|(a, _), (b, _)| {
-            a.target.cmp(&b.target).then(
-                a.file
-                    .cmp(&b.file)
-                    .then(a.line.cmp(&b.line))
-                    .then(a.name.cmp(&b.name)),
+            a.target().cmp(&b.target()).then(
+                a.file()
+                    .cmp(&b.file())
+                    .then(a.line().cmp(&b.line()))
+                    .then(a.name().cmp(&b.name())),
             )
         });
 
@@ -172,16 +178,20 @@ impl Callsites {
 
         let mut color_iter = AutoColor::default();
 
-        for (index, (callsite, tapes)) in callsites.into_iter().enumerate() {
+        for (global_index, (callsite, tapes)) in callsites.into_iter().enumerate() {
             let callsite = Callsite {
                 inner: callsite.clone(),
                 color: color_iter.next().expect("color"),
+                tape_data: tapes
+                    .into_iter()
+                    .inspect(|(path, tape_index)| {
+                        tape_to_global.insert(((*path).clone(), *tape_index), global_index);
+                    })
+                    .map(|(path, tape_index)| (path.clone(), CallsiteTapeData { callsite_index: tape_index, statistics: None }))
+                    .collect(),
             };
-            callsite_vec.push(callsite);
 
-            for (path, offset) in tapes {
-                tape_to_global.insert((path.clone(), offset), index);
-            }
+            callsite_vec.push(callsite);
         }
 
         Self {
@@ -194,6 +204,10 @@ impl Callsites {
         self.tape_to_global
             .get(&(path.to_path_buf(), index))
             .map(|index| &self.callsites[*index])
+    }
+
+    pub fn tape_to_global(&self, path: &Path, index: usize) -> Option<usize> {
+        self.tape_to_global.get(&(path.to_path_buf(), index)).copied()
     }
 }
 

@@ -11,6 +11,7 @@ mod state;
 mod tabs;
 pub mod timeline;
 pub mod utils;
+pub mod statistics;
 
 #[derive(Debug, Default, Parser)]
 struct Args {
@@ -37,19 +38,6 @@ fn main() {
     let web_options = eframe::WebOptions::default();
 
     wasm_bindgen_futures::spawn_local(async {
-        // use eframe::wasm_bindgen::JsCast;
-
-        // let document = web_sys::window()
-        //     .expect("No window")
-        //     .document()
-        //     .expect("No document");
-
-        // let canvas = document
-        //     .get_element_by_id("the_canvas_id")
-        //     .expect("Failed to find the_canvas_id")
-        //     .dyn_into::<web_sys::HtmlCanvasElement>()
-        //     .expect("the_canvas_id was not a HtmlCanvasElement");
-
         let start_result = eframe::WebRunner::new()
             .start(
                 "eframe",
@@ -175,11 +163,16 @@ impl eframe::App for TraceDeck {
                 // tapes: &self.tapes,
                 state: &mut self.state,
                 global_time_span,
+                new_tabs: vec![],
             };
 
             DockArea::new(&mut self.dock_state)
                 .style(Style::from_egui(ui.style().as_ref()))
                 .show_inside(ui, &mut viewer);
+
+            if !viewer.new_tabs.is_empty() {
+                self.dock_state.add_window(viewer.new_tabs);
+            }
         });
     }
 
