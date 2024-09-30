@@ -112,7 +112,12 @@ impl Default for Intermediate {
 impl Intermediate {
     fn callsite<'a>(&mut self, slice: &'a [u8]) -> &'a [u8] {
         let (callsite, remaining) = IntermediateCallsite::parse(slice);
-        self.intermediate_callsites.insert(callsite.id, callsite);
+
+        if callsite.fields.capacity() == 0 {
+            self.callsites.push(callsite);
+        } else {
+            self.intermediate_callsites.insert(callsite.id, callsite);
+        }
         remaining
     }
 
@@ -593,6 +598,10 @@ impl TapeData {
             let children = intermediate_graph.neighbors(node).collect::<Vec<_>>();
             let intermediate_span = intermediate_graph.remove_node(node).unwrap();
 
+            // if !callsite_map.contains_key(&intermediate_span.callsite_id) {
+            //     continue;
+            // }
+
             let callsite_index = callsite_map[&intermediate_span.callsite_id];
             let mut values = intermediate_span.values.into_iter().collect::<Vec<_>>();
             values.sort_by_cached_key(|(field_id, _)| {
@@ -628,6 +637,10 @@ impl TapeData {
             for child in children {
                 let children = intermediate_graph.neighbors(child).collect::<Vec<_>>();
                 let intermediate_span = intermediate_graph.remove_node(child).unwrap();
+
+                // if !callsite_map.contains_key(&intermediate_span.callsite_id) {
+                //     continue;
+                // }
 
                 let callsite_index = callsite_map[&intermediate_span.callsite_id];
                 let mut values = intermediate_span.values.into_iter().collect::<Vec<_>>();
