@@ -357,9 +357,9 @@ pub struct IntermediateSpan {
 
 #[derive(Debug)]
 pub struct SpanEntrance {
-    entered: i64,
-    exited: i64,
-    thread_id: u64,
+    pub entered: i64,
+    pub exited: i64,
+    pub thread_id: u64,
 }
 
 #[derive(Debug)]

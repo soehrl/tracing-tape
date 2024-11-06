@@ -15,6 +15,9 @@ use tape_timeline::TapeTimeline;
 mod callsites;
 use callsites::Callsites;
 
+mod plot_span_duration;
+pub use plot_span_duration::PlotSpanDuration;
+
 mod details;
 pub use details::{Details, SelectedItem};
 
@@ -37,6 +40,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
             Tab::Events(tape) => egui::Id::new(tape.id()),
             Tab::Timeline(tape) => egui::Id::new(tape.id()),
             Tab::Details(details) => egui::Id::new(details.id()),
+            Tab::PlotSpanDuration(plot) => plot.id(),
         }
     }
 
@@ -48,6 +52,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
             Tab::Events(tape) => tape.title(),
             Tab::Timeline(tape) => tape.title(),
             Tab::Details(details) => details.title(),
+            Tab::PlotSpanDuration(plot) => plot.title(),
         }
     }
 
@@ -59,6 +64,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
             Tab::Events(tape) => tape.ui(ui, self),
             Tab::Timeline(tape) => tape.ui(ui, self),
             Tab::Details(details) => details.ui(ui, self),
+            Tab::PlotSpanDuration(plot) => plot.ui(ui, self),
         }
     }
 
@@ -70,6 +76,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
             Tab::Events(_) => true,
             Tab::Timeline(_) => true,
             Tab::Details(_) => true,
+            Tab::PlotSpanDuration(_) => true,
         }
     }
 
@@ -81,6 +88,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
             Tab::Events(_) => true,
             Tab::Timeline(_) => true,
             Tab::Details(_) => true,
+            Tab::PlotSpanDuration(_) => true,
         }
     }
 }
@@ -92,6 +100,7 @@ pub enum Tab {
     Events(TapeEvents),
     Timeline(TapeTimeline),
     Details(Details),
+    PlotSpanDuration(PlotSpanDuration),
 }
 
 impl Tab {
@@ -117,5 +126,9 @@ impl Tab {
 
     pub fn details() -> Self {
         Self::Details(Details)
+    }
+
+    pub fn plot_span_duration(callsite_index: usize, tape: PathBuf) -> Self {
+        Self::PlotSpanDuration(PlotSpanDuration { callsite_index, tape })
     }
 }

@@ -7,7 +7,7 @@ use crate::statistics::{
     calculate_statistics, CallsiteStatistics, EventCallsiteStatistics, SpanCallsiteStatistics,
 };
 
-use super::TabViewer;
+use super::{Tab, TabViewer};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SelectedItem {
@@ -95,6 +95,10 @@ impl Details {
             match statistics {
                 CallsiteStatistics::Span(span_statistics) => {
                     Self::span_statistics_ui(ui, span_statistics, path);
+                    if ui.button("Plot").clicked() {
+                        viewer.new_tabs.push(Tab::plot_span_duration(callsite_index, path.clone()));
+                    }
+
                 }
                 CallsiteStatistics::Event(event_statistics) => {
                     Self::event_statistics_ui(ui, event_statistics, path);
@@ -109,7 +113,6 @@ impl Details {
         tape_path: &PathBuf,
     ) {
         ui.label(tape_path.to_str().unwrap());
-
         egui::Grid::new("span_statistics")
             .num_columns(2)
             .striped(true)

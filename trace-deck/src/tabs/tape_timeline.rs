@@ -156,85 +156,96 @@ impl TapeTimeline {
         // let mut span_relevant = Vec::new();
 
         let respone = timeline.show(ui, |timeline_ui, i| {
-            let mut level = 0;
+            let thread_id = threads[i].1;
+            let mut level = Vec::new();
+
             petgraph::visit::depth_first_search(spans, relevant_root_spans.clone(), |event| {
                 match event {
-                    petgraph::visit::DfsEvent::Discover(n, t) => {
+                    petgraph::visit::DfsEvent::Discover(n, _) => {
                         let span = spans.node_weight(n).unwrap();
-                        let callsite = viewer
-                            .state
-                            .callsites
-                            .get_for_tape(&self.tape_path, span.callsite_index)
-                            .unwrap();
-
+                        level.push(false);
+                        if span.opened > end || span.closed < start {
+                            return petgraph::visit::Control::<()>::Prune;
+                        }
                         let opened = loaded_tape
                             .timestamp_to_global_offset(span.opened, viewer.global_time_span.start);
                         let closed = loaded_tape
                             .timestamp_to_global_offset(span.closed, viewer.global_time_span.start);
 
-                        let width = timeline_ui.dt2dx(closed - opened);
-                        if width > 1.0 {
-                            let color = if width < 10.0 {
-                                callsite.color.linear_multiply((width - 1.0) / 9.0)
-                            } else {
-                                callsite.color
-                            };
-
-                            let response = timeline_ui.item(
-                                level,
-                                callsite.inner.name().to_string(),
-                                color,
-                                opened..=closed,
-                            );
-
-                            let mut text = format!(
-                                "{} ({:.1})\n{}",
-                                callsite.inner.name(),
-                                Duration::nanoseconds(span.closed - span.opened),
-                                callsite.inner.target()
-                            );
-                            if let (Some(file), Some(line)) =
-                                (&callsite.inner.file(), callsite.inner.line())
-                            {
-                                text.push_str(&format!("\n{}:{}", file, line));
-                            }
-
-                            for (field, value) in
-                                callsite.inner.fields().iter().zip(span.values.iter())
-                            {
-                                text.push_str(&format!("\n{} = {}", field, value));
-                            }
-                            let response = response.on_hover_text_at_pointer(text);
-
-                            if response.clicked() {
-                                viewer.state.selected_item = Some(SelectedItem::Span {
-                                    span_index: n,
-                                    tape: self.tape_path.clone(),
-                                });
-                            }
+                        if span.entrances.iter().any(|e| e.thread_id == thread_id) {
+                            level.iter_mut().for_each(|l| *l = true);
                         }
 
-                        level += 1;
-
-                        if timeline_ui.dt2dx(closed - opened) > 5.0 {
+                        if timeline_ui.dt2dx(closed - opened) > 1.0 {
                             petgraph::visit::Control::<()>::Continue
                         } else {
                             petgraph::visit::Control::<()>::Prune
                         }
                     }
-                    petgraph::visit::DfsEvent::Finish(n, t) => {
-                        level -= 1;
+                    petgraph::visit::DfsEvent::Finish(n, _) => {
+                        if level.pop().unwrap() {
+                            let span = spans.node_weight(n).unwrap();
+                            let callsite = viewer
+                                .state
+                                .callsites
+                                .get_for_tape(&self.tape_path, span.callsite_index)
+                                .unwrap();
+
+                            let opened = loaded_tape.timestamp_to_global_offset(
+                                span.opened,
+                                viewer.global_time_span.start,
+                            );
+                            let closed = loaded_tape.timestamp_to_global_offset(
+                                span.closed,
+                                viewer.global_time_span.start,
+                            );
+
+                            let width = timeline_ui.dt2dx(closed - opened);
+                            if width > 1.0 {
+                                let color = if width < 10.0 {
+                                    callsite.color.linear_multiply((width - 1.0) / 9.0)
+                                } else {
+                                    callsite.color
+                                };
+
+                                let response = timeline_ui.item(
+                                    level.len(),
+                                    callsite.inner.name().to_string(),
+                                    color,
+                                    opened..=closed,
+                                );
+
+                                let mut text = format!(
+                                    "{} ({:.1})\n{}",
+                                    callsite.inner.name(),
+                                    Duration::nanoseconds(span.closed - span.opened),
+                                    callsite.inner.target()
+                                );
+                                if let (Some(file), Some(line)) =
+                                    (&callsite.inner.file(), callsite.inner.line())
+                                {
+                                    text.push_str(&format!("\n{}:{}", file, line));
+                                }
+
+                                for (field, value) in
+                                    callsite.inner.fields().iter().zip(span.values.iter())
+                                {
+                                    text.push_str(&format!("\n{} = {}", field, value));
+                                }
+                                let response = response.on_hover_text_at_pointer(text);
+
+                                if response.clicked() {
+                                    viewer.state.selected_item = Some(SelectedItem::Span {
+                                        span_index: n,
+                                        tape: self.tape_path.clone(),
+                                    });
+                                }
+                            }
+                        }
+
                         petgraph::visit::Control::<()>::Continue
                     }
-                    petgraph::visit::DfsEvent::TreeEdge(n, t) => {
-                        petgraph::visit::Control::<()>::Continue
-                    }
-                    petgraph::visit::DfsEvent::BackEdge(n, t) => {
-                        petgraph::visit::Control::<()>::Continue
-                    }
-                    petgraph::visit::DfsEvent::CrossForwardEdge(n, t) => {
-                        petgraph::visit::Control::<()>::Continue
-                    }
+                    _ => petgraph::visit::Control::<()>::Continue,
                 }
             });
 

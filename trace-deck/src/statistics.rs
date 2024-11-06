@@ -42,54 +42,68 @@ fn calculate_span_statistics(tape: &Tape, callsite_index: usize) -> SpanCallsite
         })
         .collect();
 
-    let q2_index = spans.len() / 2;
-    let (lower_half, q2, upper_half) =
-        spans.select_nth_unstable_by_key(q2_index, |(_, duration)| *duration);
+    if spans.len() >= 3 {
+        let q2_index = spans.len() / 2;
+        let (lower_half, q2, upper_half) =
+            spans.select_nth_unstable_by_key(q2_index, |(_, duration)| *duration);
 
-    let q1_index = lower_half.len() / 2;
-    let (smaller_q1, q1, _) =
-        lower_half.select_nth_unstable_by_key(q1_index, |(_, duration)| *duration);
+        let q1_index = lower_half.len() / 2;
+        let (smaller_q1, q1, _) =
+            lower_half.select_nth_unstable_by_key(q1_index, |(_, duration)| *duration);
 
-    let q3_index = upper_half.len() / 2;
-    let (_, q3, greater_q3) =
-        upper_half.select_nth_unstable_by_key(q3_index, |(_, duration)| *duration);
+        let q3_index = upper_half.len() / 2;
+        let (_, q3, greater_q3) =
+            upper_half.select_nth_unstable_by_key(q3_index, |(_, duration)| *duration);
 
-    let iqr = q3.1 - q1.1;
-    let iqr_1_5 = iqr + iqr / 2;
-    let lower_bound = q1.1 - iqr_1_5;
-    let upper_bound = q3.1 + iqr_1_5;
+        let iqr = q3.1 - q1.1;
+        let iqr_1_5 = iqr + iqr / 2;
+        let lower_bound = q1.1 - iqr_1_5;
+        let upper_bound = q3.1 + iqr_1_5;
 
-    let mut outliers_fast = vec![];
-    for value in smaller_q1 {
-        if value.1 < lower_bound {
-            outliers_fast.push(value.0);
+        let mut outliers_fast = vec![];
+        for value in smaller_q1 {
+            if value.1 < lower_bound {
+                outliers_fast.push(value.0);
+            }
         }
-    }
 
-    let mut outliers_slow = vec![];
-    for value in greater_q3 {
-        if value.1 > upper_bound {
-            outliers_slow.push(value.0);
+        let mut outliers_slow = vec![];
+        for value in greater_q3 {
+            if value.1 > upper_bound {
+                outliers_slow.push(value.0);
+            }
         }
-    }
 
-    SpanCallsiteStatistics {
-        q1: q1.1,
-        q2: q2.1,
-        q3: q3.1,
-        iqr,
-        min,
-        max,
-        mean: sum / spans.len() as i64,
-        outliers_slow,
-        outliers_fast,
-        span_indices: spans.into_iter().map(|(index, _)| index).collect(),
+        SpanCallsiteStatistics {
+            q1: q1.1,
+            q2: q2.1,
+            q3: q3.1,
+            iqr,
+            min,
+            max,
+            mean: sum / spans.len() as i64,
+            outliers_slow,
+            outliers_fast,
+            span_indices: spans.into_iter().map(|(index, _)| index).collect(),
+        }
+    } else {
+        SpanCallsiteStatistics {
+            q1: 0,
+            q2: 0,
+            q3: 0,
+            iqr: 0,
+            min,
+            max,
+            mean: sum / spans.len() as i64,
+            outliers_slow: vec![],
+            outliers_fast: vec![],
+            span_indices: spans.into_iter().map(|(index, _)| index).collect(),
+        }
     }
 }
 
 #[derive(Debug)]
-pub struct EventCallsiteStatistics {
-}
+pub struct EventCallsiteStatistics {}
 
 fn calculate_event_statistics(tape: &Tape, callsite_index: usize) -> EventCallsiteStatistics {
     EventCallsiteStatistics {}
