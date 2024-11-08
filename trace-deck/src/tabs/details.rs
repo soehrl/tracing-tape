@@ -172,9 +172,9 @@ impl Details {
     }
 
     pub fn event_statistics_ui(
-        ui: &mut egui::Ui,
-        statistics: &EventCallsiteStatistics,
-        tape_path: &PathBuf,
+        _ui: &mut egui::Ui,
+        _statistics: &EventCallsiteStatistics,
+        _tape_path: &PathBuf,
     ) {
     }
 

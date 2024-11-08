@@ -44,11 +44,6 @@ impl Timeline {
         self
     }
 
-    pub fn with_row_headers(mut self, row_headers: Vec<String>) -> Self {
-        self.row_headers = row_headers;
-        self
-    }
-
     pub fn with_row_header(mut self, row_header: impl Into<String>) -> Self {
         self.row_headers.push(row_header.into());
         self
@@ -182,7 +177,7 @@ impl Timeline {
         TimelineResponse {
             response,
             visible_range: timeline_ui.visible_range,
-            selected_range: self.selected_range,
+            // selected_range: self.selected_range,
         }
     }
 }
@@ -568,5 +563,4 @@ impl TimelineUi<'_> {
 pub struct TimelineResponse {
     pub response: egui::Response,
     pub visible_range: TimeRange,
-    pub selected_range: Option<TimeRange>,
 }

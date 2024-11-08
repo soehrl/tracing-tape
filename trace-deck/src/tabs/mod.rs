@@ -21,7 +21,7 @@ pub use plot_span_duration::PlotSpanDuration;
 mod details;
 pub use details::{Details, SelectedItem};
 
-use crate::{state::State, LoadedTape};
+use crate::state::State;
 
 pub struct TabViewer<'a> {
     pub state: &'a mut State,
@@ -129,6 +129,9 @@ impl Tab {
     }
 
     pub fn plot_span_duration(callsite_index: usize, tape: PathBuf) -> Self {
-        Self::PlotSpanDuration(PlotSpanDuration { callsite_index, tape })
+        Self::PlotSpanDuration(PlotSpanDuration {
+            callsite_index,
+            tape,
+        })
     }
 }

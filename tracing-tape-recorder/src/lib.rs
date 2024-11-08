@@ -69,17 +69,6 @@ impl Chapter {
         }
     }
 
-    fn write(&self, file: &File, next_chapter_index: u64) {
-        let offset = self.offset();
-        let data = unsafe { self.as_bytes() };
-
-        use std::os::unix::fs::FileExt;
-        file.write_all_at(data, offset).unwrap();
-
-        self.chapter_index
-            .store(next_chapter_index, Ordering::Release);
-    }
-
     unsafe fn as_bytes(&self) -> &[u8] {
         std::slice::from_raw_parts(self.buffer.load(Ordering::Relaxed), self.chapter_size)
     }

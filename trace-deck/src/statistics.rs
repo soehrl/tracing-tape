@@ -105,7 +105,7 @@ fn calculate_span_statistics(tape: &Tape, callsite_index: usize) -> SpanCallsite
 #[derive(Debug)]
 pub struct EventCallsiteStatistics {}
 
-fn calculate_event_statistics(tape: &Tape, callsite_index: usize) -> EventCallsiteStatistics {
+fn calculate_event_statistics(_: &Tape, _: usize) -> EventCallsiteStatistics {
     EventCallsiteStatistics {}
 }
 

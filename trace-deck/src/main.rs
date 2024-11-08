@@ -10,10 +10,10 @@ use tabs::{Tab, TabViewer};
 use tracing_tape_parser::Tape;
 
 mod state;
+pub(crate) mod statistics;
 mod tabs;
-pub mod timeline;
-pub mod utils;
-pub mod statistics;
+pub(crate) mod timeline;
+pub(crate) mod utils;
 
 #[derive(Debug, Default, Parser)]
 struct Args {
@@ -59,8 +59,8 @@ impl TraceDeck {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
         // Restore app state using cc.storage (requires the "persistence" feature).
-        // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
-        // for e.g. egui::PaintCallback.
+        // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that
+        // you can use for e.g. egui::PaintCallback.
 
         let args = Args::parse();
 
@@ -78,7 +78,8 @@ impl TraceDeck {
                 let path = path.into();
                 let file = std::fs::read(&path).unwrap();
                 (path, file.into())
-            })).unwrap()
+            }))
+            .unwrap()
         };
 
         Self {
@@ -87,9 +88,7 @@ impl TraceDeck {
         }
     }
 
-    fn load_files<I>(
-        files: I,
-    ) -> std::io::Result<(DockState<Tab>, LoadedTapes)> 
+    fn load_files<I>(files: I) -> std::io::Result<(DockState<Tab>, LoadedTapes)>
     where
         I: Iterator<Item = (PathBuf, Arc<[u8]>)>,
     {
@@ -143,7 +142,7 @@ impl TraceDeck {
 }
 
 impl eframe::App for TraceDeck {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             let mut global_time_span: Option<std::ops::Range<time::OffsetDateTime>> = None;
             for tape in &*self.state.loaded_tapes {
@@ -180,16 +179,14 @@ impl eframe::App for TraceDeck {
 
     fn raw_input_hook(&mut self, _ctx: &egui::Context, raw_input: &mut egui::RawInput) {
         if !raw_input.dropped_files.is_empty() {
-            let (dock_state, tapes) = Self::load_files(
-                raw_input
-                    .dropped_files
-                    .iter()
-                    .map(|f| {
-                        let path = f.path.clone().unwrap_or_else(|| (&f.name).into());
-                        let bytes = f.bytes.clone().unwrap_or_else(|| std::fs::read(&path).unwrap().into());
-                        (path, bytes)
-                    })
-            )
+            let (dock_state, tapes) = Self::load_files(raw_input.dropped_files.iter().map(|f| {
+                let path = f.path.clone().unwrap_or_else(|| (&f.name).into());
+                let bytes = f
+                    .bytes
+                    .clone()
+                    .unwrap_or_else(|| std::fs::read(&path).unwrap().into());
+                (path, bytes)
+            }))
             .unwrap();
             self.dock_state = dock_state;
             self.state = tapes.into();

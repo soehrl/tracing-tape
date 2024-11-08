@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use egui::Align;
 use egui_extras::{Column, TableBuilder};
 
-use super::{LoadedTape, TabViewer};
+use super::TabViewer;
 
 pub struct TapeEvents {
     title: String,
