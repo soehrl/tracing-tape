@@ -332,20 +332,20 @@ impl Intermediate {
 }
 
 #[derive(Debug)]
-pub struct IntermediateValue {
+struct IntermediateValue {
     value: Value,
     field_id: u64,
 }
 
 #[derive(Debug)]
-pub struct IntermediateEvent {
+struct IntermediateEvent {
     timestamp: i64,
     callsite_id: u64,
     values: Vec<IntermediateValue>,
 }
 
 #[derive(Debug)]
-pub struct IntermediateSpan {
+struct IntermediateSpan {
     id: u64,
     opened: i64,
     closed: i64,
@@ -385,7 +385,7 @@ pub struct Field {
 }
 
 #[derive(Debug)]
-pub struct IntermediateCallsite {
+struct IntermediateCallsite {
     id: u64,
     kind: tracing::metadata::Kind,
     level: tracing::Level,
