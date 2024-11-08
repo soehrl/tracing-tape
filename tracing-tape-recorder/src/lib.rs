@@ -1,3 +1,24 @@
+//! # Tracing Tape Recorder
+//! This crate provides a [tracing subscriber layer](tracing_subscriber::Layer)
+//! that records [tracing] events to a file in the [tracing-tape](tracing_tape)
+//! format.
+//!
+//! ## Setup
+//! First, add the the [tracing], [tracing_subscriber], and
+//! [tracing-tape-recorder](self) dependencies to your application:`cargo add
+//! tracing tracing_subscriber tracing-tape-recorder`.
+//! Then, you can use the [TapeRecorder] layer in your application:
+//!
+//! ```rust
+//! use tracing_subscriber::layer::SubscriberExt;
+//! use tracing_tape_recorder::TapeRecorder;
+//! let subscriber = tracing_subscriber::Registry::default().with(TapeRecorder::default());
+//! tracing::subscriber::set_global_default(subscriber).expect("failed to set default subscriber");
+//! ```
+//! This will create a new *.tape file in the current working directory with the
+//! name based on the executable name and the current time. This file can be
+//! viewed using the trace-deck.
+
 use std::{
     borrow::Cow,
     fs::File,
@@ -16,7 +37,9 @@ use tracing_subscriber::registry::LookupSpan;
 use tracing_tape::{
     intro::Intro,
     record::{
-        field_type, CallsiteFieldRecord, CallsiteRecord, EventRecord, EventValueRecord, SpanCloseRecord, SpanEnterRecord, SpanExitRecord, SpanFollowsRecord, SpanOpenRecord, SpanValueRecord
+        field_type, CallsiteFieldRecord, CallsiteRecord, EventRecord, EventValueRecord,
+        SpanCloseRecord, SpanEnterRecord, SpanExitRecord, SpanFollowsRecord, SpanOpenRecord,
+        SpanValueRecord,
     },
 };
 use zerocopy::AsBytes;
@@ -76,8 +99,8 @@ impl Chapter {
         let expected_bytes_written = end_offset - data_offset;
 
         loop {
-            // Acquire ordering because previuous writes to the buffer must be visible to this
-            // thread.
+            // Acquire ordering because previuous writes to the buffer must be visible to
+            // this thread.
             let bytes_written = self.bytes_written.load(Ordering::Acquire);
             if bytes_written == expected_bytes_written {
                 break;
@@ -245,7 +268,7 @@ impl TapeRecorder {
     }
 }
 
-pub struct EventValueRecorder<'a> {
+struct EventValueRecorder<'a> {
     recorder: &'a TapeRecorder,
     thread_id: u64,
 }
@@ -307,7 +330,7 @@ impl tracing::field::Visit for EventValueRecorder<'_> {
     }
 }
 
-pub struct SpanValueRecorder<'a> {
+struct SpanValueRecorder<'a> {
     recorder: &'a TapeRecorder,
     span_id: u64,
 }

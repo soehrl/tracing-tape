@@ -1,4 +1,8 @@
-use std::{collections::VecDeque, fmt::Display, io::Read, sync::Arc};
+//! # Tracing Tape Parser
+//! This craet provides parsing functionality for the `tracing-tape` format.
+//! It is mainly used in the trace-deck crate to parse the tape files.
+
+use std::{fmt::Display, sync::Arc};
 
 use ahash::HashMap;
 use smallvec::SmallVec;

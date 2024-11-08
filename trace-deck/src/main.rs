@@ -1,3 +1,5 @@
+//! Trace Deck is a tool for visualizing and analyzing trace data recorded by
+//! the [tracing-tape-recorder](https://crates.io/crates/tracing-tape-recorder) crate.
 use std::{path::PathBuf, sync::Arc};
 
 use clap::Parser;
