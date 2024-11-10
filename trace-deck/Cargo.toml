@@ -1,7 +1,14 @@
 [package]
 name = "trace-deck"
 version = "0.1.0"
+authors = ["Simon Oehrl"]
 edition = "2021"
+description = "GUI for visualizing and analyzing tracing tape files"
+readme = "../README.md"
+homepage = "https://trace-deck.oehrl.dev"
+repository = "https://github.com/soehrl/tracing-tape"
+license = "MIT/Apache-2.0"
+keywords = ["tracing", "tape", "gui", "debug"]
 
 [dependencies]
 ahash = "0.8.11"
@@ -16,7 +23,7 @@ petgraph = "0.6.5"
 postcard = "1.0.10"
 rayon = "1.10.0"
 time = { version = "0.3.36", features = ["formatting", "macros"] }
-tracing-tape-parser = { path = "../tracing-tape-parser" }
+tracing-tape-parser = { version = "0.1.0", path = "../tracing-tape-parser" }
 zerocopy = "0.7.35"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
