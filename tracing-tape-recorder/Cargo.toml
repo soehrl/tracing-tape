@@ -1,7 +1,13 @@
 [package]
 name = "tracing-tape-recorder"
 version = "0.1.0"
+authors = ["Simon Oehrl"]
 edition = "2021"
+description = "Tracing subscriber layer for the tracing-tape format"
+homepage = "https://github.com/soehrl/tracing-tape"
+repository = "https://github.com/soehrl/tracing-tape"
+license = "MIT/Apache-2.0"
+keywords = ["tracing", "recorder"]
 
 [dependencies]
 ahash = "0.8.11"
@@ -9,7 +15,7 @@ smallvec = "1.13.2"
 time = "0.3.36"
 tracing.workspace = true
 tracing-subscriber = "0.3.18"
-tracing-tape = { path = "../tracing-tape" }
+tracing-tape = { version = "0.1.0", path = "../tracing-tape" }
 zerocopy = "0.7.35"
 
 [dev-dependencies]
