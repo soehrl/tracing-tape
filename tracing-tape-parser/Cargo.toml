@@ -1,11 +1,18 @@
 [package]
 name = "tracing-tape-parser"
 version = "0.1.0"
+authors = ["Simon Oehrl"]
 edition = "2021"
+description = "Parser for the tracing-tape format"
+readme = "../README.md"
+homepage = "https://github.com/soehrl/tracing-tape"
+repository = "https://github.com/soehrl/tracing-tape"
+license = "MIT/Apache-2.0"
+keywords = ["tracing", "parser"]
 
 [dependencies]
 zerocopy = "0.7.35"
-tracing-tape = { path = "../tracing-tape" }
+tracing-tape = { version = "0.1.0", path = "../tracing-tape" }
 ahash = "0.8.11"
 smallvec = "1.13.2"
 petgraph = "0.6.5"
