@@ -1,7 +1,13 @@
 [package]
 name = "tracing-tape"
 version = "0.1.0"
+authors = ["Simon Oehrl"]
 edition = "2021"
+description = "Binary format specification for the tracing crate"
+homepage = "https://github.com/soehrl/tracing-tape"
+repository = "https://github.com/soehrl/tracing-tape"
+license = "MIT/Apache-2.0"
+keywords = ["tracing", "format", "binary"]
 
 [dependencies]
 ahash = "0.8.11"
