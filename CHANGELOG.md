@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- This CHANGELOG file that will contain all notable changes to this project
+- This CHANGELOG file that will contain all notable changes to this project (#2)
 
 
 ## [0.1.0] - 2024-11-10
