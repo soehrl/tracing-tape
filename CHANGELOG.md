@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- [This CHANGELOG file that will contain all notable changes to this project](#2)
+- This CHANGELOG file that will contain all notable changes to this project ([#2](https://github.com/soehrl/tracing-tape/pull/2/))
 
 
 ## [0.1.0] - 2024-11-10
@@ -19,4 +19,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tracing-tape-parser` crate for parsing traces
 - `trace-deck` application for viewing traces
 - README file
-- [CI for testing crates and trace-deck deployment](#1)
+- CI for testing crates and trace-deck deployment ([#1](https://github.com/soehrl/tracing-tape/pull/2/))
