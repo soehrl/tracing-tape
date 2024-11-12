@@ -74,9 +74,9 @@ impl SpanEnterRecord {
 #[derive(AsBytes, FromZeroes, FromBytes, Unaligned)]
 #[repr(C)]
 pub struct SpanExitRecord {
-    header: RecordHeader,
-    id: little_endian::U64,
-    timestamp: little_endian::I64,
+    pub header: RecordHeader,
+    pub id: little_endian::U64,
+    pub timestamp: little_endian::I64,
 }
 
 impl SpanExitRecord {
