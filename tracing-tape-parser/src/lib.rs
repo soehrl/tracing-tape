@@ -9,9 +9,7 @@ use smallvec::SmallVec;
 use tracing_tape::{
     intro::Intro,
     record::{
-        field_type, record_kind, CallsiteFieldRecord, CallsiteRecord, EventRecord,
-        EventValueRecord, RecordHeader, SpanCloseRecord, SpanEnterRecord, SpanOpenRecord,
-        SpanValueRecord,
+        field_type, record_kind, CallsiteFieldRecord, CallsiteRecord, EventRecord, EventValueRecord, RecordHeader, SpanCloseRecord, SpanEnterRecord, SpanExitRecord, SpanOpenRecord, SpanValueRecord
     },
 };
 use zerocopy::FromBytes;
@@ -243,7 +241,7 @@ impl Intermediate {
     }
 
     fn exit_span<'a>(&mut self, slice: &'a [u8]) -> &'a [u8] {
-        let span_exit_record = SpanEnterRecord::ref_from_prefix(slice).unwrap();
+        let span_exit_record = SpanExitRecord::ref_from_prefix(slice).unwrap();
 
         let index = self.opened_spans[&span_exit_record.id.get()];
         let span = &mut self.span_graph[index];
