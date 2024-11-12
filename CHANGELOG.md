@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - This CHANGELOG file that will contain all notable changes to this project ([#2](https://github.com/soehrl/tracing-tape/pull/2/))
 
+### Fixed
+- Parsing of *SpanExit* records ([#3](https://github.com/soehrl/tracing-tape/pull/3/))
+
 
 ## [0.1.0] - 2024-11-10
 
