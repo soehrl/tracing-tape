@@ -710,9 +710,8 @@ impl Tape {
     }
 
     pub fn time_range(&self) -> std::ops::RangeInclusive<i128> {
-        let base = self.intro.timestamp_base.get();
-        let start = base + self.data.min_timestamp as i128;
-        let end = base + self.data.max_timestamp as i128;
+        let start = self.intro.timestamp_base.get();
+        let end = start + self.data.max_timestamp as i128;
         start..=end
     }
 
