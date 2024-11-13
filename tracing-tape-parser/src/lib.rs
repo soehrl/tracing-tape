@@ -229,6 +229,10 @@ impl Intermediate {
     fn enter_span<'a>(&mut self, slice: &'a [u8]) -> &'a [u8] {
         let span_enter_record = SpanEnterRecord::ref_from_prefix(slice).unwrap();
 
+        self.threads
+            .entry(span_enter_record.thread_id.get())
+            .or_insert(None);
+
         let index = self.opened_spans[&span_enter_record.id.get()];
         let span = &mut self.span_graph[index];
         span.entrances.push(SpanEntrance {

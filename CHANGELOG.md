@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Parsing of *SpanExit* records ([#3](https://github.com/soehrl/tracing-tape/pull/3/))
+- Parsing of Threads only used for spans ([#4](https://github.com/soehrl/tracing-tape/pull/4/))
 
 
 ## [0.1.0] - 2024-11-10
