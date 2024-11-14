@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parsing of *SpanExit* records ([#3](https://github.com/soehrl/tracing-tape/pull/3/))
 - Parsing of Threads only used for spans ([#4](https://github.com/soehrl/tracing-tape/pull/4/))
 - Reported tape time range ([#5](https://github.com/soehrl/tracing-tape/pull/5/))
+- Flush current chapter when dropping the recorder ([#12](https://github.com/soehrl/tracing-tape/pull/12/))
 
 
 ## [0.1.0] - 2024-11-10
