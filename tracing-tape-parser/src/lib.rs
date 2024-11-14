@@ -390,7 +390,9 @@ struct IntermediateEvent {
 
 #[derive(Debug)]
 enum Parent {
+    #[allow(dead_code)]
     Root,
+    #[allow(dead_code)]
     Explicit(u64),
     Contextual,
 }
