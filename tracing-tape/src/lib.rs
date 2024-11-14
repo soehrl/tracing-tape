@@ -17,5 +17,5 @@
 //! [VERSION](intro::Version) constant. The tape file format is versioned
 //! independently of this crate.
 
-pub mod record;
 pub mod intro;
+pub mod record;

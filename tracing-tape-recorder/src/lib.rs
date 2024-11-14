@@ -56,7 +56,7 @@ use tracing_tape::{
     record::{
         field_type, parent_kind, CallsiteFieldRecord, CallsiteRecord, EventRecord,
         EventValueRecord, SpanCloseRecord, SpanEnterRecord, SpanExitRecord, SpanFollowsRecord,
-        SpanOpenRecord, SpanOpenRecord2, SpanValueRecord,
+        SpanOpenRecord2, SpanValueRecord,
     },
 };
 use zerocopy::AsBytes;
@@ -490,8 +490,14 @@ where
         _ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
         let timestamp = self.inner.elapsed_nanos();
-        let callsite_id = self.inner.random_state.hash_one(event.metadata().callsite());
-        let thread_id = self.inner.random_state.hash_one(std::thread::current().id());
+        let callsite_id = self
+            .inner
+            .random_state
+            .hash_one(event.metadata().callsite());
+        let thread_id = self
+            .inner
+            .random_state
+            .hash_one(std::thread::current().id());
         let event_record = EventRecord::new(
             event.metadata().fields().len() as u16,
             timestamp,
@@ -499,9 +505,10 @@ where
             thread_id,
         );
 
-        self.inner.write(std::mem::size_of::<EventRecord>(), |slice| {
-            slice.copy_from_slice(event_record.as_bytes());
-        });
+        self.inner
+            .write(std::mem::size_of::<EventRecord>(), |slice| {
+                slice.copy_from_slice(event_record.as_bytes());
+            });
         let mut recorder = EventValueRecorder {
             recorder: &self.inner,
             thread_id,
@@ -517,9 +524,15 @@ where
     ) {
         let timestamp = self.inner.elapsed_nanos();
         let id = self.inner.random_state.hash_one(id);
-        let callsite_id = self.inner.random_state.hash_one(attrs.metadata().callsite());
+        let callsite_id = self
+            .inner
+            .random_state
+            .hash_one(attrs.metadata().callsite());
         let (parent_kind, parent_id) = if let Some(parent) = attrs.parent() {
-            (parent_kind::EXPLICIT, self.inner.random_state.hash_one(parent))
+            (
+                parent_kind::EXPLICIT,
+                self.inner.random_state.hash_one(parent),
+            )
         } else if attrs.is_contextual() {
             (parent_kind::CURRENT, 0)
         } else {
@@ -539,7 +552,10 @@ where
     fn on_enter(&self, id: &Id, _ctx: tracing_subscriber::layer::Context<'_, S>) {
         let timestamp = self.inner.elapsed_nanos();
         let id = self.inner.random_state.hash_one(id);
-        let thread_id = self.inner.random_state.hash_one(std::thread::current().id());
+        let thread_id = self
+            .inner
+            .random_state
+            .hash_one(std::thread::current().id());
 
         let record = SpanEnterRecord::new(id, timestamp, thread_id);
         self.inner.write(std::mem::size_of_val(&record), |slice| {
