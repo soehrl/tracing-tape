@@ -5,7 +5,10 @@ Record trace files and view them within within seconds without complex setup or 
 [![Trace Deck Screenshot](https://github.com/soehrl/tracing-tape/blob/main/trace-deck.png)](https://github.com/soehrl/tracing-tape/blob/main/trace-deck.png)
 
 ## Setup
-1. Add the following dependencies to your application: `cargo add tracing tracing-subscriber tracing-tape-recorder`.
+1. Add the following dependencies to your application:
+```
+cargo add tracing tracing-subscriber tracing-tape-recorder
+```
 2. Add the following code to your application:
 ```rust
 use tracing::trace_span;
