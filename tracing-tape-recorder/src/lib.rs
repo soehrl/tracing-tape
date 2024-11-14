@@ -6,7 +6,7 @@
 //! ## Setup
 //! First, add the the [tracing], [tracing-subscriber](tracing_subscriber), and
 //! [tracing-tape-recorder](self) dependencies to your application:
-//! ```
+//! ```sh
 //! cargo add tracing tracing-subscriber tracing-tape-recorder
 //! ```
 //! Then, you can use the [TapeRecorder] layer in your application:
@@ -16,7 +16,7 @@
 //! use tracing_subscriber::{fmt, layer::SubscriberExt, Registry};
 //! use tracing_tape_recorder::TapeRecorder;
 //!
-//! let subscriber = Registry::default().with(TapeRecorder::default())
+//! let subscriber = Registry::default().with(TapeRecorder::default());
 //! let guard = tracing::subscriber::set_default(subscriber);
 //!
 //! // ...
@@ -27,7 +27,7 @@
 //! name based on the executable name and the current time. This file can be
 //! viewed using the [trace-deck](https://crates.io/crates/trace-deck) which is available
 //! [online](https://trace-deck.oehrl.dev) or can be installed locally using
-//! ```
+//! ```sh
 //! cargo install trace-deck
 //! ```
 //! Have a look at the [getting stated
