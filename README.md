@@ -15,7 +15,7 @@ use tracing::trace_span;
 use tracing_subscriber::{fmt, layer::SubscriberExt, Registry};
 use tracing_tape_recorder::TapeRecorder;
 
-let subscriber = Registry::default().with(TapeRecorder::default())
+let subscriber = Registry::default().with(TapeRecorder::default());
 let guard = tracing::subscriber::set_default(subscriber);
 
 // ...
