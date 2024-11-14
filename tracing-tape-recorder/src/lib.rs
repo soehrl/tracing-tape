@@ -187,7 +187,7 @@ impl TapeRecorderInner {
     #[inline]
     fn chapter(&self, chapter_index: u64) -> &Chapter {
         let chapter = &self.chapters[(chapter_index & 1) as usize];
-        while chapter.chapter_index.load(Ordering::Acquire) != chapter_index {recorderlibrs
+        while chapter.chapter_index.load(Ordering::Acquire) != chapter_index {
             println!("waiting for {chapter_index}");
             hint::spin_loop();
         }
