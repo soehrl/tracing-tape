@@ -125,7 +125,13 @@ impl Chapter {
         #[cfg(windows)]
         {
             use std::os::windows::fs::FileExt;
-            file.write_all_at(data, offset).unwrap();
+            let mut offset = offset;
+            let mut data = data;
+            while !data.is_empty() {
+                let bytes_written = file.seek_write(data, offset).unwrap();
+                data = &data[bytes_written..];
+                offset += bytes_written;
+            }
         }
 
         self.bytes_written.store(0, Ordering::Relaxed);
