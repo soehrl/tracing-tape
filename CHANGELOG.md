@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - This CHANGELOG file that will contain all notable changes to this project ([#2](https://github.com/soehrl/tracing-tape/pull/2/))
 - Derive the `Debug`, `Clone`, and `Copy` traits for all structs in the `tracing-tape` crate ([#11](https://github.com/soehrl/tracing-tape/pull/11/))
+- Store parent kind of a span explicitly (bumps format version to `0.1`) ([#13](https://github.com/soehrl/tracing-tape/pull/13/))
 
 ### Fixed
 - Parsing of *SpanExit* records ([#3](https://github.com/soehrl/tracing-tape/pull/3/))
