@@ -2,7 +2,7 @@ use zerocopy::{little_endian, AsBytes, FromBytes, FromZeroes, Unaligned};
 
 use super::{record_kind, RecordHeader};
 
-#[derive(Debug, AsBytes, FromZeroes, FromBytes, Unaligned)]
+#[derive(Debug, Clone, Copy, AsBytes, FromZeroes, FromBytes, Unaligned)]
 #[repr(transparent)]
 pub struct CallsiteInfo(u8);
 
@@ -73,7 +73,7 @@ impl CallsiteInfo {
     }
 }
 
-#[derive(Debug, AsBytes, FromZeroes, FromBytes, Unaligned)]
+#[derive(Debug, Clone, Copy, AsBytes, FromZeroes, FromBytes, Unaligned)]
 #[repr(C)]
 pub struct CallsiteRecord {
     pub header: RecordHeader,
@@ -114,7 +114,7 @@ impl CallsiteRecord {
     }
 }
 
-#[derive(Debug, AsBytes, FromZeroes, FromBytes, Unaligned)]
+#[derive(Debug, Clone, Copy, AsBytes, FromZeroes, FromBytes, Unaligned)]
 #[repr(C)]
 pub struct CallsiteFieldRecord {
     pub header: RecordHeader,

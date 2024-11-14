@@ -2,7 +2,7 @@ use zerocopy::{little_endian, AsBytes, FromBytes, FromZeroes, Unaligned};
 
 use super::{record_kind, RecordHeader};
 
-#[derive(AsBytes, FromZeroes, FromBytes, Unaligned)]
+#[derive(Debug, Clone, Copy, AsBytes, FromZeroes, FromBytes, Unaligned)]
 #[repr(C)]
 pub struct EventRecord {
     pub header: RecordHeader,
@@ -24,7 +24,7 @@ impl EventRecord {
     }
 }
 
-#[derive(AsBytes, FromZeroes, FromBytes, Unaligned)]
+#[derive(Debug, Clone, Copy, AsBytes, FromZeroes, FromBytes, Unaligned)]
 #[repr(C)]
 pub struct EventValueRecord {
     pub header: RecordHeader,

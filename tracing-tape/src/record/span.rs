@@ -2,7 +2,7 @@ use zerocopy::{little_endian, AsBytes, FromBytes, FromZeroes, Unaligned};
 
 use super::{record_kind, RecordHeader};
 
-#[derive(AsBytes, FromZeroes, FromBytes, Unaligned)]
+#[derive(Debug, Clone, Copy, AsBytes, FromZeroes, FromBytes, Unaligned)]
 #[repr(C)]
 pub struct SpanOpenRecord {
     pub header: RecordHeader,
@@ -27,7 +27,7 @@ impl SpanOpenRecord {
     }
 }
 
-#[derive(AsBytes, FromZeroes, FromBytes, Unaligned)]
+#[derive(Debug, Clone, Copy, AsBytes, FromZeroes, FromBytes, Unaligned)]
 #[repr(C)]
 pub struct SpanCloseRecord {
     pub header: RecordHeader,
@@ -48,7 +48,7 @@ impl SpanCloseRecord {
     }
 }
 
-#[derive(AsBytes, FromZeroes, FromBytes, Unaligned)]
+#[derive(Debug, Clone, Copy, AsBytes, FromZeroes, FromBytes, Unaligned)]
 #[repr(C)]
 pub struct SpanEnterRecord {
     pub header: RecordHeader,
@@ -71,7 +71,7 @@ impl SpanEnterRecord {
     }
 }
 
-#[derive(AsBytes, FromZeroes, FromBytes, Unaligned)]
+#[derive(Debug, Clone, Copy, AsBytes, FromZeroes, FromBytes, Unaligned)]
 #[repr(C)]
 pub struct SpanExitRecord {
     pub header: RecordHeader,
@@ -92,7 +92,7 @@ impl SpanExitRecord {
     }
 }
 
-#[derive(AsBytes, FromZeroes, FromBytes, Unaligned)]
+#[derive(Debug, Clone, Copy, AsBytes, FromZeroes, FromBytes, Unaligned)]
 #[repr(C)]
 pub struct SpanValueRecord {
     pub header: RecordHeader,
@@ -115,7 +115,7 @@ impl SpanValueRecord {
     }
 }
 
-#[derive(AsBytes, FromZeroes, FromBytes, Unaligned)]
+#[derive(Debug, Clone, Copy, AsBytes, FromZeroes, FromBytes, Unaligned)]
 #[repr(C)]
 pub struct SpanFollowsRecord {
     pub header: RecordHeader,
