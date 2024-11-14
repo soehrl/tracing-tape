@@ -4,20 +4,34 @@
 //! format.
 //!
 //! ## Setup
-//! First, add the the [tracing], [tracing_subscriber], and
-//! [tracing-tape-recorder](self) dependencies to your application:`cargo add
-//! tracing tracing_subscriber tracing-tape-recorder`.
+//! First, add the the [tracing], [tracing-subscriber](tracing_subscriber), and
+//! [tracing-tape-recorder](self) dependencies to your application:
+//! ```sh
+//! cargo add tracing tracing-subscriber tracing-tape-recorder
+//! ```
 //! Then, you can use the [TapeRecorder] layer in your application:
 //!
 //! ```rust
-//! use tracing_subscriber::layer::SubscriberExt;
+//! use tracing::trace_span;
+//! use tracing_subscriber::{fmt, layer::SubscriberExt, Registry};
 //! use tracing_tape_recorder::TapeRecorder;
-//! let subscriber = tracing_subscriber::Registry::default().with(TapeRecorder::default());
-//! tracing::subscriber::set_global_default(subscriber).expect("failed to set default subscriber");
+//!
+//! let subscriber = Registry::default().with(TapeRecorder::default());
+//! let guard = tracing::subscriber::set_default(subscriber);
+//!
+//! // ...
+//!
+//! drop(guard);
 //! ```
 //! This will create a new *.tape file in the current working directory with the
 //! name based on the executable name and the current time. This file can be
-//! viewed using the trace-deck.
+//! viewed using the [trace-deck](https://crates.io/crates/trace-deck) which is available
+//! [online](https://trace-deck.oehrl.dev) or can be installed locally using
+//! ```sh
+//! cargo install trace-deck
+//! ```
+//! Have a look at the [getting stated
+//! guide](https://github.com/soehrl/tracing-tape/wiki/Getting-Started) for more information.
 
 use std::{
     borrow::Cow,
