@@ -2,6 +2,12 @@ use zerocopy::{little_endian, AsBytes, FromBytes, FromZeroes, Unaligned};
 
 use super::{record_kind, RecordHeader};
 
+pub mod parent_kind {
+    pub const ROOT: u8 = 0;
+    pub const CURRENT: u8 = 1;
+    pub const EXPLICIT: u8 = 2;
+}
+
 #[derive(Debug, Clone, Copy, AsBytes, FromZeroes, FromBytes, Unaligned)]
 #[repr(C)]
 pub struct SpanOpenRecord {
@@ -23,6 +29,40 @@ impl SpanOpenRecord {
             parent_id: parent_id.unwrap_or(0).into(),
             callsite_id: callsite_id.into(),
             timestamp: timestamp.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, AsBytes, FromZeroes, FromBytes, Unaligned)]
+#[repr(C)]
+pub struct SpanOpenRecord2 {
+    pub span_open_record: SpanOpenRecord,
+    pub parent_kind: u8,
+}
+
+impl SpanOpenRecord2 {
+    pub fn new(id: u64, parent_kind: u8, parent_id: u64, callsite_id: u64, timestamp: i64) -> Self {
+        SpanOpenRecord2 {
+            span_open_record: SpanOpenRecord {
+                header: RecordHeader::new(
+                    record_kind::SPAN_OPEN,
+                    std::mem::size_of::<SpanOpenRecord2>() as u16,
+                ),
+                id: id.into(),
+                parent_id: parent_id.into(),
+                callsite_id: callsite_id.into(),
+                timestamp: timestamp.into(),
+            },
+            parent_kind,
+        }
+    }
+}
+
+impl From<SpanOpenRecord> for SpanOpenRecord2 {
+    fn from(record: SpanOpenRecord) -> Self {
+        SpanOpenRecord2 {
+            span_open_record: record,
+            parent_kind: parent_kind::EXPLICIT,
         }
     }
 }

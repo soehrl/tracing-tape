@@ -37,9 +37,7 @@ use tracing_subscriber::registry::LookupSpan;
 use tracing_tape::{
     intro::Intro,
     record::{
-        field_type, CallsiteFieldRecord, CallsiteRecord, EventRecord, EventValueRecord,
-        SpanCloseRecord, SpanEnterRecord, SpanExitRecord, SpanFollowsRecord, SpanOpenRecord,
-        SpanValueRecord,
+        field_type, parent_kind, CallsiteFieldRecord, CallsiteRecord, EventRecord, EventValueRecord, SpanCloseRecord, SpanEnterRecord, SpanExitRecord, SpanFollowsRecord, SpanOpenRecord, SpanOpenRecord2, SpanValueRecord
     },
 };
 use zerocopy::AsBytes;
@@ -491,16 +489,14 @@ where
         let timestamp = self.elapsed_nanos();
         let id = self.random_state.hash_one(id);
         let callsite_id = self.random_state.hash_one(attrs.metadata().callsite());
-        let parent = if let Some(parent) = attrs.parent() {
-            Some(self.random_state.hash_one(parent))
+        let (parent_kind, parent_id) = if let Some(parent) = attrs.parent() {
+            (parent_kind::EXPLICIT, self.random_state.hash_one(parent))
         } else if attrs.is_contextual() {
-            tracing::Span::current()
-                .id()
-                .map(|id| self.random_state.hash_one(&id))
+            (parent_kind::CURRENT, 0)
         } else {
-            None
+            (parent_kind::ROOT, 0)
         };
-        let record = SpanOpenRecord::new(id, parent, callsite_id, timestamp);
+        let record = SpanOpenRecord2::new(id, parent_kind, parent_id, callsite_id, timestamp);
         self.write(std::mem::size_of_val(&record), |slice| {
             slice.copy_from_slice(record.as_bytes());
         });
