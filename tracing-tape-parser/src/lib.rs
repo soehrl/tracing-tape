@@ -209,10 +209,8 @@ impl Intermediate {
 
     fn open_span<'a>(&mut self, slice: &'a [u8]) -> &'a [u8] {
         let span_record = if slice.len() >= std::mem::size_of::<SpanOpenRecord2>() {
-            println!("2");
             SpanOpenRecord2::ref_from_prefix(slice).unwrap().clone()
         } else if slice.len() >= std::mem::size_of::<SpanOpenRecord>() {
-            println!("1");
             SpanOpenRecord::ref_from_prefix(slice)
                 .unwrap()
                 .clone()
