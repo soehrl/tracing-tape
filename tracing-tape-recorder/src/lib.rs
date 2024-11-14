@@ -130,7 +130,7 @@ impl Chapter {
             while !data.is_empty() {
                 let bytes_written = file.seek_write(data, offset).unwrap();
                 data = &data[bytes_written..];
-                offset += bytes_written;
+                offset += bytes_written as u64;
             }
         }
 
