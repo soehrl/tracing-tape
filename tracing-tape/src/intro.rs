@@ -14,7 +14,7 @@ pub struct Version {
     pub minor: u8,
 }
 
-pub const VERSION: Version = Version { major: 0, minor: 0 };
+pub const VERSION: Version = Version { major: 0, minor: 1 };
 
 /// The size of a chapter in the tapfile.
 ///

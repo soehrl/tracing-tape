@@ -9,7 +9,7 @@
 //! version.
 //! E.g., a parser for version 1.2 should be able to parse version 1.3 and 1.1 files.
 //!
-//! The current tape file version is **`0.0`** which is also encoded in the [VERSION](intro::Version) constant.
+//! The current tape file version is **`0.1`** which is also encoded in the [VERSION](intro::Version) constant.
 //! The tape file format is versioned independently of this crate.
 
 pub mod record;

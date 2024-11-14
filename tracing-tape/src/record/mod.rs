@@ -6,8 +6,8 @@ pub use event::{EventRecord, EventValueRecord};
 
 mod span;
 pub use span::{
-    SpanCloseRecord, SpanEnterRecord, SpanExitRecord, SpanFollowsRecord, SpanOpenRecord,
-    SpanValueRecord,
+    parent_kind, SpanCloseRecord, SpanEnterRecord, SpanExitRecord, SpanFollowsRecord,
+    SpanOpenRecord, SpanOpenRecord2, SpanValueRecord,
 };
 use zerocopy::{little_endian, AsBytes, FromBytes, FromZeroes, Unaligned};
 
