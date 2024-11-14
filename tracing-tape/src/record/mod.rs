@@ -28,7 +28,7 @@ pub mod record_kind {
     pub const SPAN_FOLLOWS: u8 = 0x25;
 }
 
-#[derive(Debug, AsBytes, FromBytes, FromZeroes, Unaligned)]
+#[derive(Debug, Clone, Copy, AsBytes, FromBytes, FromZeroes, Unaligned)]
 #[repr(C)]
 pub struct RecordHeader {
     pub kind: u8,
