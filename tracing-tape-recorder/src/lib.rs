@@ -117,8 +117,16 @@ impl Chapter {
         let offset = self.offset();
         let data = unsafe { self.as_bytes() };
 
-        use std::os::unix::fs::FileExt;
-        file.write_all_at(data, offset).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::FileExt;
+            file.write_all_at(data, offset).unwrap();
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::FileExt;
+            file.write_all_at(data, offset).unwrap();
+        }
 
         self.bytes_written.store(0, Ordering::Relaxed);
         self.data_offset.store(u64::max_value(), Ordering::Relaxed);
@@ -179,7 +187,7 @@ impl TapeRecorderInner {
     #[inline]
     fn chapter(&self, chapter_index: u64) -> &Chapter {
         let chapter = &self.chapters[(chapter_index & 1) as usize];
-        while chapter.chapter_index.load(Ordering::Acquire) != chapter_index {
+        while chapter.chapter_index.load(Ordering::Acquire) != chapter_index {recorderlibrs
             println!("waiting for {chapter_index}");
             hint::spin_loop();
         }
