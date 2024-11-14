@@ -166,6 +166,16 @@ impl Default for TapeRecorder {
     }
 }
 
+impl Drop for TapeRecorder {
+    fn drop(&mut self) {
+        let offset = self.offset.load(Ordering::Relaxed);
+        let chapter_bytes = offset & self.chapter_offset_mask;
+        let chapter_index = self.chapter_index(offset);
+        let chapter = self.chapter(chapter_index);
+        chapter.finish(&self.file, chapter_bytes, chapter_index + 2);
+    }
+}
+
 impl TapeRecorder {
     fn with_file<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
         let mut file = File::create_new(path)?;
