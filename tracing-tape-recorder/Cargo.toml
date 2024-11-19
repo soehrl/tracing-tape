@@ -16,8 +16,8 @@ smallvec = "1.13.2"
 time = "0.3.36"
 tracing.workspace = true
 tracing-subscriber = "0.3.18"
-tracing-tape = { version = "0.1.0", path = "../tracing-tape" }
-zerocopy = "0.7.35"
+tracing-tape.workspace = true
+zerocopy.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true
