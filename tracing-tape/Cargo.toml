@@ -1,8 +1,8 @@
 [package]
 name = "tracing-tape"
-version = "0.1.0"
-authors = ["Simon Oehrl"]
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 description = "Binary format specification for the tracing crate"
 readme = "../README.md"
 homepage = "https://github.com/soehrl/tracing-tape"
