@@ -1,12 +1,16 @@
 [workspace]
 resolver = "2"
-
 members = [ 
     "tracing-tape",
     "tracing-tape-recorder",
     "tracing-tape-parser",
     "trace-deck",
 ]
+
+[workspace.package]
+version = "0.1.1"
+authors = ["Simon Oehrl"]
+edition = "2021"
 
 [profile.release]
 # lto = true
@@ -15,3 +19,6 @@ panic = "abort"
 [workspace.dependencies]
 tracing = "0.1.40"
 criterion = { version = "0.5", features = ["html_reports"] }
+zerocopy = { version = "0.7.35", features = ["derive"] }
+tracing-tape = { version = "0.1.1", path = "tracing-tape" }
+tracing-tape-parser = { version = "0.1.1", path = "tracing-tape-parser" }

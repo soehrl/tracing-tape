@@ -1,8 +1,8 @@
 [package]
 name = "trace-deck"
-version = "0.1.0"
-authors = ["Simon Oehrl"]
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 description = "GUI for visualizing and analyzing tracing tape files"
 readme = "../README.md"
 homepage = "https://trace-deck.oehrl.dev"
@@ -23,7 +23,7 @@ petgraph = "0.6.5"
 postcard = "1.0.10"
 rayon = "1.10.0"
 time = { version = "0.3.36", features = ["formatting", "macros"] }
-tracing-tape-parser = { version = "0.1.0", path = "../tracing-tape-parser" }
+tracing-tape-parser.workspace = true
 zerocopy = "0.7.35"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
