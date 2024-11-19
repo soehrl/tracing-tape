@@ -117,8 +117,22 @@ impl Chapter {
         let offset = self.offset();
         let data = unsafe { self.as_bytes() };
 
-        use std::os::unix::fs::FileExt;
-        file.write_all_at(data, offset).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::FileExt;
+            file.write_all_at(data, offset).unwrap();
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::FileExt;
+            let mut offset = offset;
+            let mut data = data;
+            while !data.is_empty() {
+                let bytes_written = file.seek_write(data, offset).unwrap();
+                data = &data[bytes_written..];
+                offset += bytes_written as u64;
+            }
+        }
 
         self.bytes_written.store(0, Ordering::Relaxed);
         self.data_offset.store(u64::max_value(), Ordering::Relaxed);
