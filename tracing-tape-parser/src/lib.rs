@@ -5,7 +5,7 @@
 use std::{fmt::Display, sync::Arc};
 
 use ahash::HashMap;
-use smallvec::SmallVec;
+use petgraph::{graph::NodeIndex, Graph};
 use tracing_tape::{
     intro::Intro,
     record::{
@@ -67,6 +67,50 @@ impl Display for Value {
     }
 }
 
+#[derive(Debug, Default)]
+struct IntermediateThread {
+    name: Option<String>,
+    entrances: Graph<SpanEntrance, (), petgraph::Directed, usize>,
+    root_entrances: Vec<NodeIndex<usize>>,
+    context: Vec<NodeIndex<usize>>,
+}
+
+impl IntermediateThread {
+    fn finish(self, max_timestamp: i64) -> Thread {
+        let mut entrances = self.entrances;
+        for entrance_index in self.context {
+            entrances[entrance_index].exited = max_timestamp;
+        }
+
+        Thread {
+            name: self.name,
+            entrances,
+            root_entrances: self.root_entrances,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Thread {
+    name: Option<String>,
+    entrances: Graph<SpanEntrance, (), petgraph::Directed, usize>,
+    root_entrances: Vec<NodeIndex<usize>>,
+}
+
+impl Thread {
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
+    pub fn root_entrances(&self) -> &[NodeIndex<usize>] {
+        &self.root_entrances
+    }
+
+    pub fn entrances(&self) -> &Graph<SpanEntrance, (), petgraph::Directed, usize> {
+        &self.entrances
+    }
+}
+
 #[derive(Debug)]
 struct Intermediate {
     min_timestamp: i64,
@@ -86,12 +130,14 @@ struct Intermediate {
     /// Complete events.
     events: Vec<IntermediateEvent>,
 
-    span_graph:
-        petgraph::stable_graph::StableGraph<IntermediateSpan, (), petgraph::Directed, usize>,
-    root_nodes: Vec<petgraph::stable_graph::NodeIndex<usize>>,
-    opened_spans: HashMap<u64, petgraph::stable_graph::NodeIndex<usize>>,
-    context: HashMap<u64, Vec<petgraph::stable_graph::NodeIndex<usize>>>,
-    threads: HashMap<u64, Option<String>>,
+    /// Closed spans.
+    spans: Vec<IntermediateSpan>,
+
+    /// Open spans.
+    open_spans: HashMap<u64, usize>,
+
+    /// All discovered threads.
+    threads: HashMap<u64, IntermediateThread>,
 }
 
 impl Default for Intermediate {
@@ -106,11 +152,9 @@ impl Default for Intermediate {
             intermediate_events: HashMap::default(),
             events: Vec::new(),
 
-            span_graph: Default::default(),
-            root_nodes: Vec::new(),
-            opened_spans: HashMap::default(),
+            spans: Vec::new(),
+            open_spans: HashMap::default(),
             threads: HashMap::default(),
-            context: HashMap::default(),
         }
     }
 }
@@ -156,7 +200,7 @@ impl Intermediate {
         // TODO: change once try_insert is stable
         self.threads
             .entry(event_record.thread_id.get())
-            .or_insert(None);
+            .or_default();
 
         let event = IntermediateEvent {
             timestamp: event_record.timestamp.get(),
@@ -219,14 +263,16 @@ impl Intermediate {
             panic!("invalid span record");
         };
 
+        println!("{:?}", span_record);
+
         let span = IntermediateSpan {
             id: span_record.span_open_record.id.get(),
             opened: span_record.span_open_record.timestamp.get(),
             closed: 0,
-            entrances: SmallVec::new(),
             callsite_id: span_record.span_open_record.callsite_id.get(),
             parent: Parent::Contextual,
             values: HashMap::default(),
+            entered_thread: None,
         };
 
         self.min_timestamp = self
@@ -237,8 +283,9 @@ impl Intermediate {
             .max(span_record.span_open_record.timestamp.get());
 
         let span_id = span.id;
-        let index = self.span_graph.add_node(span);
-        self.opened_spans.insert(span_id, index);
+        let span_index = self.spans.len();
+        self.spans.push(span);
+        self.open_spans.insert(span_id, span_index);
 
         &slice[span_record.span_open_record.header.len.get() as usize..]
     }
@@ -246,22 +293,26 @@ impl Intermediate {
     fn enter_span<'a>(&mut self, slice: &'a [u8]) -> &'a [u8] {
         let span_enter_record = SpanEnterRecord::ref_from_prefix(slice).unwrap();
 
-        self.threads
-            .entry(span_enter_record.thread_id.get())
-            .or_insert(None);
+        println!("{:?}", span_enter_record);
 
-        let index = self.opened_spans[&span_enter_record.id.get()];
-        let span = &mut self.span_graph[index];
         let thread_id = span_enter_record.thread_id.get();
-        span.entrances.push(SpanEntrance {
+        let thread = self.threads.entry(thread_id).or_default();
+        let span_index = self.open_spans[&span_enter_record.id.get()];
+        self.spans[span_index].entered_thread = Some(thread_id);
+
+        let entrance = SpanEntrance {
             entered: span_enter_record.timestamp.get(),
-            exited: 0,
-            thread_id,
-        });
-        self.context
-            .entry(thread_id)
-            .or_insert_with(Vec::new)
-            .push(index);
+            exited: span_enter_record.timestamp.get(),
+            span_index,
+        };
+
+        let entrance_index = thread.entrances.add_node(entrance);
+        if let Some(containing) = thread.context.last() {
+            thread.entrances.add_edge(*containing, entrance_index, ());
+        } else {
+            thread.root_entrances.push(entrance_index);
+        }
+        thread.context.push(entrance_index);
 
         &slice[span_enter_record.header.len.get() as usize..]
     }
@@ -269,18 +320,17 @@ impl Intermediate {
     fn exit_span<'a>(&mut self, slice: &'a [u8]) -> &'a [u8] {
         let span_exit_record = SpanExitRecord::ref_from_prefix(slice).unwrap();
 
-        let index = self.opened_spans[&span_exit_record.id.get()];
-        let span = &mut self.span_graph[index];
-        let last_entrance = span.entrances.last_mut().unwrap();
-        last_entrance.exited = span_exit_record.timestamp.get();
+        println!("{:?}", span_exit_record);
 
-        assert_eq!(
-            self.context
-                .get_mut(&last_entrance.thread_id)
-                .unwrap()
-                .pop(),
-            Some(index)
-        );
+        let span_index = self.open_spans[&span_exit_record.id.get()];
+        if let Some(thread_id) = self.spans[span_index].entered_thread.take() {
+            let thread = self.threads.get_mut(&thread_id).unwrap();
+            let entrance_index = thread.context.pop().unwrap();
+            let entrance = thread.entrances.node_weight_mut(entrance_index).unwrap();
+            entrance.exited = span_exit_record.timestamp.get();
+        } else {
+            panic!("span exited without being entered");
+        }
 
         &slice[span_exit_record.header.len.get() as usize..]
     }
@@ -288,25 +338,14 @@ impl Intermediate {
     fn close_span<'a>(&mut self, slice: &'a [u8]) -> &'a [u8] {
         let span_record = SpanCloseRecord::ref_from_prefix(slice).unwrap();
 
+        println!("{:?}", span_record);
+
         self.min_timestamp = self.min_timestamp.min(span_record.timestamp.get());
         self.max_timestamp = self.max_timestamp.max(span_record.timestamp.get());
 
-        let span_index = self.opened_spans.remove(&span_record.id.get()).unwrap();
-        let span = &mut self.span_graph[span_index];
+        let span_index = self.open_spans.remove(&span_record.id.get()).unwrap();
+        let span = &mut self.spans[span_index];
         span.closed = span_record.timestamp.get();
-
-        if matches!(span.parent, Parent::Root) {
-            self.root_nodes.push(span_index);
-        } else if let Some(last_entrance) = span.entrances.last() {
-            let thread_id = last_entrance.thread_id;
-            if let Some(parent_index) = self.context[&thread_id].last() {
-                self.span_graph.add_edge(*parent_index, span_index, ());
-            } else {
-                self.root_nodes.push(span_index);
-            }
-        } else {
-            self.root_nodes.push(span_index);
-        }
 
         &slice[span_record.header.len.get() as usize..]
     }
@@ -322,8 +361,8 @@ impl Intermediate {
         let value = Value::parse(kind, value);
 
         let span_id = span_value_record.span_id.get();
-        let index = self.opened_spans[&span_id];
-        let span = &mut self.span_graph[index];
+        let index = self.open_spans[&span_id];
+        let span = &mut self.spans[index];
         span.values.insert(span_value_record.field_id.get(), value);
 
         &slice[span_value_record.header.len.get() as usize..]
@@ -402,17 +441,17 @@ struct IntermediateSpan {
     id: u64,
     opened: i64,
     closed: i64,
-    entrances: SmallVec<[SpanEntrance; 1]>,
     callsite_id: u64,
     parent: Parent,
     values: HashMap<u64, Value>,
+    entered_thread: Option<u64>,
 }
 
 #[derive(Debug)]
 pub struct SpanEntrance {
     pub entered: i64,
     pub exited: i64,
-    pub thread_id: u64,
+    pub span_index: usize,
 }
 
 #[derive(Debug)]
@@ -420,7 +459,6 @@ pub struct Span {
     pub opened: i64,
     pub closed: i64,
     pub callsite_index: usize,
-    pub entrances: Arc<[SpanEntrance]>,
     pub values: Arc<[Value]>,
 }
 
@@ -588,9 +626,8 @@ pub struct TapeData {
     max_timestamp: i64,
     callsites: Vec<Callsite>,
     events: Vec<Event>,
-    spans: petgraph::graph::Graph<Span, (), petgraph::Directed, usize>,
-    root_spans: Vec<petgraph::graph::NodeIndex<usize>>,
-    threads: HashMap<u64, Option<String>>,
+    spans: Vec<Span>,
+    threads: HashMap<u64, Thread>,
 }
 
 impl TapeData {
@@ -634,95 +671,33 @@ impl TapeData {
             })
             .collect();
 
-        struct SpanMapping {
-            old_children: Vec<petgraph::stable_graph::NodeIndex<usize>>,
-            new_parent: petgraph::graph::NodeIndex<usize>,
-        }
-
-        let mut root_nodes = vec![];
-        let mut intermediate_graph = intermediate.span_graph;
-        let mut spans = petgraph::Graph::with_capacity(
-            intermediate_graph.node_count(),
-            intermediate_graph.edge_count(),
-        );
-        let mut nodes_to_process = Vec::new();
-
-        for node in intermediate.root_nodes {
-            let children = intermediate_graph.neighbors(node).collect::<Vec<_>>();
-            let intermediate_span = intermediate_graph.remove_node(node).unwrap();
-
-            // if !callsite_map.contains_key(&intermediate_span.callsite_id) {
-            //     continue;
-            // }
-
-            let callsite_index = callsite_map[&intermediate_span.callsite_id];
-            let mut values = intermediate_span.values.into_iter().collect::<Vec<_>>();
-            values.sort_by_cached_key(|(field_id, _)| {
-                callsite_field_map[&(intermediate_span.callsite_id, *field_id)]
-            });
-            let value = values
-                .into_iter()
-                .map(|(_, value)| value)
-                .collect::<Vec<_>>();
-
-            let span = Span {
-                callsite_index,
-                opened: intermediate_span.opened,
-                closed: intermediate_span.closed,
-                entrances: Arc::from(intermediate_span.entrances.into_boxed_slice()),
-                values: Arc::from(value.into_boxed_slice()),
-            };
-
-            let span_node = spans.add_node(span);
-            root_nodes.push(span_node);
-            if !children.is_empty() {
-                nodes_to_process.push(SpanMapping {
-                    old_children: children,
-                    new_parent: span_node,
-                });
-            }
-        }
-
-        while let Some(mapping) = nodes_to_process.pop() {
-            let children = mapping.old_children;
-            let parent = mapping.new_parent;
-
-            for child in children {
-                let children = intermediate_graph.neighbors(child).collect::<Vec<_>>();
-                let intermediate_span = intermediate_graph.remove_node(child).unwrap();
-
-                // if !callsite_map.contains_key(&intermediate_span.callsite_id) {
-                //     continue;
-                // }
-
-                let callsite_index = callsite_map[&intermediate_span.callsite_id];
-                let mut values = intermediate_span.values.into_iter().collect::<Vec<_>>();
+        let spans = intermediate
+            .spans
+            .into_iter()
+            .map(|span| {
+                let mut values = span.values.into_iter().collect::<Vec<_>>();
                 values.sort_by_cached_key(|(field_id, _)| {
-                    callsite_field_map[&(intermediate_span.callsite_id, *field_id)]
+                    callsite_field_map[&(span.callsite_id, *field_id)]
                 });
                 let value = values
                     .into_iter()
                     .map(|(_, value)| value)
                     .collect::<Vec<_>>();
 
-                let span = Span {
-                    callsite_index,
-                    opened: intermediate_span.opened,
-                    closed: intermediate_span.closed,
-                    entrances: Arc::from(intermediate_span.entrances.into_boxed_slice()),
+                Span {
+                    callsite_index: callsite_map[&span.callsite_id],
+                    opened: span.opened,
+                    closed: span.closed,
                     values: Arc::from(value.into_boxed_slice()),
-                };
-
-                let span_node = spans.add_node(span);
-                spans.add_edge(parent, span_node, ());
-                if !children.is_empty() {
-                    nodes_to_process.push(SpanMapping {
-                        old_children: children,
-                        new_parent: span_node,
-                    });
                 }
-            }
-        }
+            })
+            .collect();
+
+        let threads = intermediate
+            .threads
+            .into_iter()
+            .map(|(thread_id, thread)| (thread_id, thread.finish(intermediate.max_timestamp)))
+            .collect();
 
         Self {
             min_timestamp: intermediate.min_timestamp,
@@ -730,8 +705,7 @@ impl TapeData {
             callsites,
             events,
             spans,
-            root_spans: root_nodes,
-            threads: intermediate.threads,
+            threads,
         }
     }
 }
@@ -774,15 +748,11 @@ impl Tape {
         &self.data.callsites
     }
 
-    pub fn root_spans(&self) -> &[petgraph::graph::NodeIndex<usize>] {
-        &self.data.root_spans
-    }
-
-    pub fn spans(&self) -> &petgraph::graph::Graph<Span, (), petgraph::Directed, usize> {
+    pub fn spans(&self) -> &[Span] {
         &self.data.spans
     }
 
-    pub fn threads(&self) -> &HashMap<u64, Option<String>> {
+    pub fn threads(&self) -> &HashMap<u64, Thread> {
         &self.data.threads
     }
 }

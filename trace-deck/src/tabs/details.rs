@@ -14,7 +14,7 @@ pub enum SelectedItem {
     Callsite(usize),
     Span {
         tape: PathBuf,
-        span_index: NodeIndex<usize>,
+        span_index: usize,
     },
 }
 
@@ -183,10 +183,10 @@ impl Details {
         ui: &mut egui::Ui,
         viewer: &mut TabViewer,
         tape: PathBuf,
-        span_index: NodeIndex<usize>,
+        span_index: usize,
     ) {
         let tape = viewer.state.loaded_tapes.get(&tape).unwrap();
-        let span = tape.tape.spans().node_weight(span_index).unwrap();
+        let span = &tape.tape.spans()[span_index];
         let callsite = tape.tape.callsites().get(span.callsite_index).unwrap();
 
         let global_callsite_index = viewer
@@ -198,7 +198,7 @@ impl Details {
         let global_callsite = &viewer.state.callsites[global_callsite_index];
 
         ui.horizontal(|ui| {
-            ui.heading(format!("Span {:x}", span_index.index()));
+            ui.heading(format!("Span {:x}", span_index));
             ui.visuals_mut().override_text_color = Some(egui::Color32::WHITE);
             if ui
                 .add(egui::Button::new(callsite.name()).fill(global_callsite.color))
