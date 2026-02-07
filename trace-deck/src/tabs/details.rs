@@ -96,9 +96,10 @@ impl Details {
                 CallsiteStatistics::Span(span_statistics) => {
                     Self::span_statistics_ui(ui, span_statistics, path);
                     if ui.button("Plot").clicked() {
-                        viewer.new_tabs.push(Tab::plot_span_duration(callsite_index, path.clone()));
+                        viewer
+                            .new_tabs
+                            .push(Tab::plot_span_duration(callsite_index, path.clone()));
                     }
-
                 }
                 CallsiteStatistics::Event(event_statistics) => {
                     Self::event_statistics_ui(ui, event_statistics, path);
@@ -155,16 +156,19 @@ impl Details {
                     .allow_boxed_zoom(false)
                     .show(ui, |ui| {
                         ui.box_plot(
-                            egui_plot::BoxPlot::new(vec![egui_plot::BoxElem::new(
-                                0.0,
-                                egui_plot::BoxSpread {
-                                    lower_whisker: statistics.min as f64,
-                                    quartile1: statistics.q1 as f64,
-                                    median: statistics.q2 as f64,
-                                    quartile3: statistics.q3 as f64,
-                                    upper_whisker: statistics.max as f64,
-                                },
-                            )])
+                            egui_plot::BoxPlot::new(
+                                "iqr-box-plot",
+                                vec![egui_plot::BoxElem::new(
+                                    0.0,
+                                    egui_plot::BoxSpread {
+                                        lower_whisker: statistics.min as f64,
+                                        quartile1: statistics.q1 as f64,
+                                        median: statistics.q2 as f64,
+                                        quartile3: statistics.q3 as f64,
+                                        upper_whisker: statistics.max as f64,
+                                    },
+                                )],
+                            )
                             .horizontal(),
                         );
                     })
@@ -213,7 +217,10 @@ impl Details {
             .striped(true)
             .show(ui, |ui| {
                 ui.label("Duration");
-                ui.label(format!("{}", Duration::nanoseconds(span.closed - span.opened)));
+                ui.label(format!(
+                    "{}",
+                    Duration::nanoseconds(span.closed - span.opened)
+                ));
                 ui.end_row();
             });
 

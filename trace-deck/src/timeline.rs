@@ -69,7 +69,7 @@ impl Timeline {
         let rect = response.rect;
 
         let font_id = &ui.style().text_styles[&egui::TextStyle::Body];
-        let row_header_galleys = ui.fonts(|f| {
+        let row_header_galleys = ui.fonts_mut(|f| {
             row_headers
                 .into_iter()
                 .map(move |h| f.layout_no_wrap(h, font_id.clone(), egui::Color32::WHITE))
@@ -447,7 +447,7 @@ impl TimelineUi<'_> {
             egui::Sense::click(),
         );
         let visuals = self.ui.style().noninteractive();
-        let rounding = visuals.rounding;
+        let rounding = visuals.corner_radius;
         self.data_painter.rect_filled(
             rect,
             rounding,
@@ -501,7 +501,7 @@ impl TimelineUi<'_> {
     fn text(&mut self, rect: &egui::Rect, text: String) {
         let text_padding = self.ui.style().spacing.button_padding;
 
-        if let Some(galley) = self.ui.fonts(|fonts| {
+        if let Some(galley) = self.ui.fonts_mut(|fonts| {
             let font_id = egui::FontId::default();
             let galley = fonts.layout_no_wrap(text, font_id, self.text_color);
             if galley.rect.width() + text_padding.x * 2.0 > rect.width() {

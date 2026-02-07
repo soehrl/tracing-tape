@@ -86,7 +86,7 @@ impl PlotSpanDuration {
             .allow_zoom(false)
             .allow_double_click_reset(false)
             .show(ui, |ui| {
-            ui.bar_chart(egui_plot::BarChart::new(bars).id(id).color(callsite.color))
+            ui.bar_chart(egui_plot::BarChart::new("bar_chart", bars).id(id).color(callsite.color))
         });
 
         if plot.response.clicked() && plot.hovered_plot_item == Some(id) {
