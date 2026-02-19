@@ -37,12 +37,22 @@ fn main() -> Result<(), eframe::Error> {
 
 #[cfg(target_arch = "wasm32")]
 fn main() {
+    use eframe::wasm_bindgen::JsCast;
+
     let web_options = eframe::WebOptions::default();
 
     wasm_bindgen_futures::spawn_local(async {
+        let window = web_sys::window().expect("no global `window` exists");
+        let document = window.document().expect("should have a document on window");
+        let canvas = document
+            .get_element_by_id("eframe")
+            .expect("should have a canvas element with id `eframe-canvas`")
+            .dyn_into::<web_sys::HtmlCanvasElement>()
+            .expect("element with id `eframe` should be a canvas element");
+
         let _ = eframe::WebRunner::new()
             .start(
-                "eframe",
+                canvas,
                 web_options,
                 Box::new(|cc| Ok(Box::new(TraceDeck::new(cc)))),
             )
