@@ -14,11 +14,11 @@ keywords = ["tracing", "tape", "gui", "debug"]
 ahash = "0.8.11"
 clap = { version = "4.5.17", features = ["derive"] }
 crossbeam-channel = "0.5.13"
-eframe = "0.28.1"
-egui = "0.28.1"
-egui_dock = "0.13.0"
-egui_extras = "0.28.1"
-egui_plot = "0.28.1"
+eframe = "0.33.3"
+egui = "0.33.3"
+egui_dock = "0.18.0"
+egui_extras = "0.33.3"
+egui_plot = "0.34.0"
 petgraph = "0.6.5"
 postcard = "1.0.10"
 rayon = "1.10.0"
@@ -29,4 +29,4 @@ zerocopy = "0.7.35"
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3.70" 
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
